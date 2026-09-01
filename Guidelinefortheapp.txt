@@ -1,0 +1,105 @@
+# M Care — Health Employee Management System
+### Project Plan / Build Prompt Document
+
+---
+
+## 1. Project Overview
+
+**App Name:** M Care
+**Tech Stack:** Laravel (Backend API) + React (Frontend)
+**Purpose:** A system to track and manage the daily field activities of health officers (paramedics/health workers). Each day, an officer selects their assigned task and fills out the corresponding form to submit it.
+
+---
+
+## 2. Data Source Note — Branches & Employees (Important)
+
+Branch and Employee data will **not** be created independently inside M Care. This data already exists in the organization's **HRM system (Health Department module)**.
+
+- M Care must be built to **reference/consume** Branch and Employee data from the existing HRM system, rather than duplicating it.
+- Integration approach (API sync, shared database, or scheduled import) is **to be finalized separately** — the person managing this will confirm the method later.
+- Until the integration method is confirmed, M Care's `branches` and `users` (employees) tables should be designed as **lightweight reference tables** — storing only the external HRM ID plus whatever minimal fields M Care needs locally (e.g. for foreign keys in daily activity records), rather than full HR profile data.
+- This keeps the system loosely coupled: once the real integration method is decided, we plug it in without redesigning the core task/form modules.
+
+---
+
+## 3. Daily Task Flow (Core Workflow)
+
+After logging in, an officer lands on a **"Today's Task"** dashboard and selects one of the following:
+
+```
+Today's Task (Task Selection)
+│
+├── 1. Samity Task ── requires selecting a sub-type
+│      ├── 1.1 Uthan Boithok (Yard Meeting)
+│      ├── 1.2 Satellite Clinic
+│      └── 1.3 Awareness Session
+│
+├── 2. Household Visit
+│
+└── 3. Static Clinic
+```
+
+**Rules:**
+- Selecting any task opens its corresponding form.
+- Forms will start **simple** (a few basic fields) and be expanded with more detailed fields later as needed.
+- Every submitted entry automatically attaches: officer ID, date, task type/sub-type, and location reference (samity/branch — pulled from HRM reference data).
+
+---
+
+## 4. Separate Module: Health Camp
+
+- This is **not** part of an individual officer's daily task selection — it is a **branch-level** module.
+- It records the services provided by a branch each day.
+- **⚠️ Decision pending:** who enters this data (branch manager / a designated officer / any worker at the branch) is not yet finalized. For now, build this module with a generic permission and tighten role restrictions later.
+
+---
+
+## 5. Reference Checklist (Source Data for Future Form Fields)
+
+The following categories, from the original samity-level healthcare checklist, will guide detailed form-field design later:
+
+- **Child Health & Nutrition:** children aged 0–59 months, low birth weight (LBW), colostrum feeding, exclusive breastfeeding (up to 6 months), underweight children
+- **Maternal & Delivery Care:** pregnant women count, ANC checkups, iron/folic acid/calcium intake, tetanus vaccination, HIV testing, delivery type, PNC checkups
+- **Adolescent Health:** malnutrition, tetanus vaccination, HPV vaccination, sanitary pad usage
+- **Adult Health:** malnutrition, diabetes, hypertension
+- **Elderly Health:** malnutrition, diabetes, hypertension, asthma, kidney disease, eye disease
+- **Mortality Data:** maternal death, neonatal death, child death, general death
+- **Regular Activities:** samity visits, yard meetings, static/satellite clinics, health/eye camps
+- **Protection Services:** maternal protection, neonatal protection, caesarean/surgery cases, permanent disability protection
+- **Vital Tests:** pulse, blood pressure, blood sugar (diabetes), BMI, anemia test
+
+---
+
+## 6. Proposed Database Structure (High Level)
+
+| Table | Description |
+|---|---|
+| `users` | Officers — synced/referenced from HRM (external_hrm_id, name, role, branch reference) |
+| `roles` | Worker / Branch Manager / Admin, etc. |
+| `branches` | Referenced from HRM (external_hrm_id, name, minimal local fields) |
+| `samities` | List of samities under a branch |
+| `task_types` | Samity Task, Household Visit, Static Clinic |
+| `task_subtypes` | Uthan Boithok, Satellite Clinic, Awareness Session (under Samity Task) |
+| `daily_activities` | Core entry table — user_id, task_type_id, subtype_id (nullable), date, samity_id (nullable), form_data (JSON) |
+| `health_camps` | Branch-level camp entries — branch_id, date, entered_by (user_id), service_data (JSON) |
+
+**Note:** Form data should use a JSON column initially, since forms are being kept simple for now and fields will change/expand later — this avoids frequent migrations.
+
+---
+
+## 7. Open Items (Still To Be Decided)
+
+- [ ] Exact fields for each form (Uthan Boithok, Satellite Clinic, Awareness Session, Household Visit, Static Clinic, Health Camp)
+- [ ] User roles and permission structure
+- [ ] Who enters Health Camp data
+- [ ] HRM integration method (API sync / shared DB / scheduled import) — to be confirmed
+- [ ] Report/dashboard views (who can see what)
+
+---
+
+## 8. Development Scope (This Phase)
+
+- Laravel backend REST API (Auth, Task CRUD, Daily Activity submission, HRM reference data consumption)
+- React frontend (Login → Task Selection → Dynamic Form → Submit)
+- Forms kept minimal at first, expanded later per the reference checklist
+- Branch/Employee data treated as external reference data, not owned by M Care
