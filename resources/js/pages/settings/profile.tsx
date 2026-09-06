@@ -21,6 +21,7 @@ import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
 import ManageTwoFactor from '@/components/manage-two-factor';
 import PasswordInput from '@/components/password-input';
+import { PwaInstallCard } from '@/components/pwa-install-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -402,6 +403,7 @@ export default function Profile({
                         </CardHeader>
                         <CardContent>
                             <AppearanceTabs />
+                            <PwaInstallCard />
                         </CardContent>
                     </Card>
                 )}
