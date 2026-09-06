@@ -1103,15 +1103,15 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                                                         {disease.label}
                                                     </span>
 
-                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                                                         {/* Affected Button */}
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleDiseaseAffected(disease.key)}
-                                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                                                            className={`flex-1 sm:flex-initial min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                                                                 status.affected
-                                                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                                                    : 'bg-muted/40 text-muted-foreground border-input'
+                                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                                                    : 'bg-muted/40 text-muted-foreground border-input hover:bg-muted'
                                                             }`}
                                                         >
                                                             {status.affected ? '✓ আক্রান্ত' : 'আক্রান্ত নন'}
@@ -1122,13 +1122,13 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleDiseaseMedication(disease.key)}
-                                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-colors ${
+                                                                className={`flex-1 sm:flex-initial min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5 transition-colors ${
                                                                     status.taking_medication
-                                                                        ? 'bg-teal-600 text-white border-teal-600'
-                                                                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                                                                        ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                                                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
                                                                 }`}
                                                             >
-                                                                <Pill className="size-3" />
+                                                                <Pill className="size-3.5" />
                                                                 {status.taking_medication
                                                                     ? 'নিয়মিত ওষুধ খান'
                                                                     : 'ওষুধ খান না'}
@@ -1191,7 +1191,7 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                                                         took_treatment: true,
                                                     })
                                                 }
-                                                className={`flex-1 py-1.5 text-xs rounded-xl font-bold border transition-colors ${
+                                                className={`flex-1 min-h-[36px] py-1.5 text-xs rounded-xl font-bold border transition-colors ${
                                                     currentEntry.took_treatment
                                                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                                                         : 'bg-background text-muted-foreground border-input'
@@ -1207,7 +1207,7 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                                                         took_treatment: false,
                                                     })
                                                 }
-                                                className={`flex-1 py-1.5 text-xs rounded-xl font-bold border transition-colors ${
+                                                className={`flex-1 min-h-[36px] py-1.5 text-xs rounded-xl font-bold border transition-colors ${
                                                     !currentEntry.took_treatment
                                                         ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
                                                         : 'bg-background text-muted-foreground border-input'
@@ -1222,13 +1222,13 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                         </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t flex justify-end gap-2.5">
+                    <div className="mt-4 pt-3 border-t flex flex-col-reverse sm:flex-row justify-end gap-2.5">
                         <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsModalOpen(false)}
-                            className="rounded-xl text-xs font-semibold"
+                            className="w-full sm:w-auto h-9 rounded-xl text-xs font-semibold"
                         >
                             বাতিল
                         </Button>
@@ -1236,7 +1236,7 @@ export function HouseholdRepeater({ households = [], onChange }: Props) {
                             type="button"
                             size="sm"
                             onClick={handleSaveEntry}
-                            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 shadow-xs"
+                            className="w-full sm:w-auto h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 shadow-xs"
                         >
                             <Check className="size-3.5 mr-1" />
                             {editIndex !== null ? 'সংরক্ষণ করুন' : 'খানা যুক্ত করুন'}

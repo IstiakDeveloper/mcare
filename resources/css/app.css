@@ -137,7 +137,38 @@
         @apply border-border;
     }
 
+    html {
+        -webkit-tap-highlight-color: transparent;
+        text-size-adjust: 100%;
+        -webkit-text-size-adjust: 100%;
+    }
+
     body {
         @apply bg-background text-foreground;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-x: hidden;
+    }
+
+    /* Prevent mobile browser zoom on form input focus while keeping modern typography */
+    @media (max-width: 768px) {
+        input:not([type='checkbox']):not([type='radio']),
+        select,
+        textarea {
+            font-size: 16px !important;
+        }
     }
 }
+
+@utility pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility touch-callout-none {
+    -webkit-touch-callout: none;
+}
+

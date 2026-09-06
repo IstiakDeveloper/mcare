@@ -18,7 +18,7 @@ import {
     Tent,
     Users,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -34,6 +34,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { Auth, NavItem } from '@/types';
@@ -41,7 +42,22 @@ import type { Auth, NavItem } from '@/types';
 export function AppSidebar() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const user = auth?.user;
+    const { setOpenMobile } = useSidebar();
     const [isSyncing, setIsSyncing] = useState(false);
+
+    // Auto hide mobile navigation whenever a page route starts or completes
+    useEffect(() => {
+        const removeStart = router.on('start', () => {
+            setOpenMobile(false);
+        });
+        const removeSuccess = router.on('success', () => {
+            setOpenMobile(false);
+        });
+        return () => {
+            removeStart();
+            removeSuccess();
+        };
+    }, [setOpenMobile]);
 
     const handleSyncHrm = () => {
         if (!confirm('আপনি কি HRM সিস্টেমের সাথে সরাসরি লাইভ ডেটা সিঙ্ক করতে চান?')) {
@@ -171,7 +187,12 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild className="hover:bg-sidebar-accent/50">
-                            <Link href={dashboard()} prefetch className="flex items-center gap-3">
+                            <Link
+                                href={dashboard()}
+                                prefetch
+                                onClick={() => setOpenMobile(false)}
+                                className="flex items-center gap-3"
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

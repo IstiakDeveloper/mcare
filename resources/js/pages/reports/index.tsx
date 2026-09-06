@@ -347,13 +347,13 @@ export default function ReportsIndex({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                    <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={exportToExcel}
-                            className="rounded-xl text-xs font-semibold h-9 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+                            className="flex-1 sm:flex-initial rounded-xl text-xs font-semibold h-9 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
                         >
                             <FileSpreadsheet className="size-4 mr-1.5 text-emerald-600" />
                             এক্সেল এক্সপোর্ট (.csv)
@@ -363,7 +363,7 @@ export default function ReportsIndex({
                             type="button"
                             size="sm"
                             onClick={handlePrint}
-                            className="rounded-xl text-xs font-bold h-9 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                            className="flex-1 sm:flex-initial rounded-xl text-xs font-bold h-9 bg-primary text-primary-foreground shadow-xs cursor-pointer"
                         >
                             <Printer className="size-4 mr-1.5" />
                             A4 প্রিন্ট / PDF
@@ -372,7 +372,7 @@ export default function ReportsIndex({
                 </div>
 
                 {/* REPORT SUB-TABS (PARENT REPORTS NAVIGATION) */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 bg-card p-1.5 rounded-2xl border border-border/80 shadow-2xs print:hidden">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 bg-card p-1.5 rounded-2xl border border-border/80 shadow-2xs print:hidden">
                     {REPORT_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.key;
@@ -384,7 +384,7 @@ export default function ReportsIndex({
                                     setActiveTab(tab.key);
                                     applyFilter(tab.key, startDate, endDate, branchId);
                                 }}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                                     isActive
                                         ? 'bg-primary text-primary-foreground shadow-xs'
                                         : 'bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
@@ -399,9 +399,9 @@ export default function ReportsIndex({
 
                 {/* DATE TO DATE FILTER BAR */}
                 <div className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs print:hidden space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         {/* Quick Date Presets */}
-                        <div className="flex items-center gap-1 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] font-bold text-muted-foreground mr-1 flex items-center gap-1">
                                 <Calendar className="size-3.5" /> দ্রুত সময়কাল:
                             </span>
@@ -423,51 +423,57 @@ export default function ReportsIndex({
                         </div>
 
                         {/* Date to Date Picker & Branch */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-1.5 text-xs">
-                                <span className="font-semibold text-muted-foreground">হতে:</span>
-                                <Input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="h-8 text-xs rounded-xl bg-background w-32"
-                                />
-                                <span className="font-semibold text-muted-foreground">পর্যন্ত:</span>
-                                <Input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="h-8 text-xs rounded-xl bg-background w-32"
-                                />
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center text-xs">
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-muted-foreground shrink-0">হতে:</span>
+                                    <Input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="h-8 text-xs rounded-xl bg-background flex-1 sm:w-32"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-muted-foreground shrink-0">পর্যন্ত:</span>
+                                    <Input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="h-8 text-xs rounded-xl bg-background flex-1 sm:w-32"
+                                    />
+                                </div>
                             </div>
 
-                            {branches.length > 1 ? (
-                                <select
-                                    value={branchId}
-                                    onChange={(e) => {
-                                        setBranchId(e.target.value);
-                                        applyFilter(activeTab, startDate, endDate, e.target.value);
-                                    }}
-                                    className="h-8 rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
-                                >
-                                    <option value="all">সকল শাখা</option>
-                                    {branches.map((b) => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : null}
+                            <div className="flex items-center gap-2">
+                                {branches.length > 1 ? (
+                                    <select
+                                        value={branchId}
+                                        onChange={(e) => {
+                                            setBranchId(e.target.value);
+                                            applyFilter(activeTab, startDate, endDate, e.target.value);
+                                        }}
+                                        className="h-8 flex-1 sm:flex-initial rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
+                                    >
+                                        <option value="all">সকল শাখা</option>
+                                        {branches.map((b) => (
+                                            <option key={b.id} value={b.id}>
+                                                {b.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : null}
 
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => applyFilter(activeTab, startDate, endDate, branchId)}
-                                className="h-8 px-3 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white cursor-pointer"
-                            >
-                                <Filter className="size-3.5 mr-1" />
-                                রিপোর্ট দেখুন
-                            </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => applyFilter(activeTab, startDate, endDate, branchId)}
+                                    className="h-8 px-4 flex-1 sm:flex-initial rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white cursor-pointer"
+                                >
+                                    <Filter className="size-3.5 mr-1" />
+                                    ফিল্টার
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

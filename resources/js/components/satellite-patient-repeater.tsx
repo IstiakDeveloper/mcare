@@ -365,7 +365,7 @@ export function SatellitePatientRepeater({ patients = [], onChange }: Props) {
                         type="button"
                         onClick={handleAddOrUpdate}
                         size="sm"
-                        className="rounded-xl px-5 text-xs font-bold shadow-xs bg-teal-600 hover:bg-teal-700 text-white"
+                        className="w-full sm:w-auto rounded-xl px-5 py-2.5 sm:py-2 text-xs font-bold shadow-xs bg-teal-600 hover:bg-teal-700 text-white"
                     >
                         <Plus className="size-3.5 mr-1" />
                         {editingId ? 'সংশোধন সংরক্ষণ করুন' : 'তালিকায় যুক্ত করুন (Add Member)'}
@@ -375,14 +375,80 @@ export function SatellitePatientRepeater({ patients = [], onChange }: Props) {
 
             {/* Patients Appended List */}
             {patients.length > 0 ? (
-                <div className="space-y-2 pt-2">
+                <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-foreground">
                             যুক্ত হওয়া সেবাগ্রহীতার তালিকা ({patients.length})
                         </span>
                     </div>
 
-                    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                    {/* Mobile View: Cards */}
+                    <div className="grid grid-cols-1 gap-2.5 md:hidden">
+                        {patients.map((p, idx) => (
+                            <div
+                                key={p.id}
+                                className="rounded-xl border border-border/80 bg-card p-3.5 space-y-2.5 shadow-2xs"
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-[11px] font-bold text-teal-700 dark:text-teal-300">
+                                            {idx + 1}
+                                        </span>
+                                        <div>
+                                            <p className="text-xs font-bold text-foreground leading-tight">{p.patient_name}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                বয়স: {p.patient_age} • {p.patient_gender}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] font-normal py-0 h-5 shrink-0">
+                                        {p.patient_type}
+                                    </Badge>
+                                </div>
+
+                                <div className="rounded-lg bg-muted/40 p-2 text-[11px] space-y-1">
+                                    <div className="flex items-center justify-between text-muted-foreground">
+                                        <span>সমিতির সদস্য:</span>
+                                        <span className="font-semibold text-foreground">
+                                            {p.member_name} {p.member_number ? `(${p.member_number})` : ''}
+                                        </span>
+                                    </div>
+                                    {p.services_provided ? (
+                                        <div className="pt-1 border-t border-border/40 text-muted-foreground">
+                                            <span className="font-medium text-foreground">প্রদত্ত সেবা: </span>
+                                            {p.services_provided}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-1">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEdit(p)}
+                                        className="h-7 text-xs px-2.5 rounded-lg text-primary hover:text-primary"
+                                    >
+                                        <Edit2 className="size-3 mr-1" />
+                                        সংশোধন
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRemove(p.id)}
+                                        className="h-7 text-xs px-2.5 rounded-lg text-destructive hover:bg-destructive/10"
+                                    >
+                                        <Trash2 className="size-3 mr-1" />
+                                        মুছুন
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-card">
                         <table className="w-full text-left text-xs">
                             <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground">
                                 <tr>

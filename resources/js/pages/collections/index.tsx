@@ -233,8 +233,8 @@ export default function FeeCollectionsIndex({
                 </div>
 
                 {/* 3. Compact Filter Bar */}
-                <div className="rounded-2xl border border-border/80 bg-card p-3 shadow-2xs">
-                    <form onSubmit={handleApplyFilters} className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="rounded-2xl border border-border/80 bg-card p-3 sm:p-3.5 shadow-2xs">
+                    <form onSubmit={handleApplyFilters} className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 text-xs">
                         {/* Search Input */}
                         <div className="relative flex-1 min-w-[160px]">
                             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
@@ -242,74 +242,77 @@ export default function FeeCollectionsIndex({
                                 placeholder="নাম, মোবাইল বা গ্রাম..."
                                 value={filterSearch}
                                 onChange={(e) => setFilterSearch(e.target.value)}
-                                className="h-8 pl-8 text-xs rounded-xl bg-background"
+                                className="h-9 sm:h-8 pl-8 text-xs rounded-xl bg-background w-full"
                             />
                         </div>
 
-                        {/* Collection Type Filter */}
-                        <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="h-8 rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
-                        >
-                            <option value="">সকল ধরণ</option>
-                            {COLLECTION_TYPES.map((t) => (
-                                <option key={t.label} value={t.label}>
-                                    {t.label}
-                                </option>
-                            ))}
-                        </select>
-
-                        {/* Date Filter */}
-                        <Input
-                            type="date"
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
-                            className="h-8 text-xs rounded-xl bg-background w-auto"
-                        />
-
-                        {/* Branch Filter (if multiple) */}
-                        {branches.length > 1 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Collection Type Filter */}
                             <select
-                                value={filterBranch}
-                                onChange={(e) => setFilterBranch(e.target.value)}
-                                className="h-8 rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="h-9 sm:h-8 flex-1 sm:flex-initial rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
                             >
-                                <option value="">সকল শাখা</option>
-                                {branches.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
+                                <option value="">সকল ধরণ</option>
+                                {COLLECTION_TYPES.map((t) => (
+                                    <option key={t.label} value={t.label}>
+                                        {t.label}
                                     </option>
                                 ))}
                             </select>
-                        ) : null}
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 ml-auto">
-                            <Button
-                                type="submit"
-                                size="sm"
-                                className="h-8 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold"
-                            >
-                                <Filter className="size-3 mr-1" />
-                                ফিল্টার
-                            </Button>
-                            {(filterSearch || filterDate || filterMonth || filterType || filterBranch) ? (
-                                <Button
-                                    type="button"
-                                    onClick={handleResetFilters}
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 px-2 rounded-xl text-xs"
+                            {/* Date Filter */}
+                            <Input
+                                type="date"
+                                value={filterDate}
+                                onChange={(e) => setFilterDate(e.target.value)}
+                                className="h-9 sm:h-8 text-xs rounded-xl bg-background flex-1 sm:flex-initial w-auto min-w-[130px]"
+                            />
+
+                            {/* Branch Filter (if multiple) */}
+                            {branches.length > 1 ? (
+                                <select
+                                    value={filterBranch}
+                                    onChange={(e) => setFilterBranch(e.target.value)}
+                                    className="h-9 sm:h-8 flex-1 sm:flex-initial rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
                                 >
-                                    <X className="size-3" />
-                                </Button>
+                                    <option value="">সকল শাখা</option>
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
                             ) : null}
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1.5 ml-auto">
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    className="h-9 sm:h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs cursor-pointer"
+                                >
+                                    <Filter className="size-3 mr-1" />
+                                    ফিল্টার
+                                </Button>
+                                {(filterSearch || filterDate || filterMonth || filterType || filterBranch) ? (
+                                    <Button
+                                        type="button"
+                                        onClick={handleResetFilters}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-9 sm:h-8 px-2.5 rounded-xl text-xs"
+                                        title="ফিল্টার রিসেট করুন"
+                                    >
+                                        <X className="size-3.5" />
+                                    </Button>
+                                ) : null}
+                            </div>
                         </div>
                     </form>
                 </div>
 
-                {/* 4. Professional Collections Data Table */}
+                {/* 4. Professional Collections Data (Mobile Cards + Desktop Table) */}
                 <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden">
                     <div className="p-3.5 border-b bg-muted/20 flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
@@ -319,126 +322,219 @@ export default function FeeCollectionsIndex({
                     </div>
 
                     {collections.data.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center">
                             <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                                 <Receipt className="size-6" />
                             </div>
-                            <h4 className="mt-2.5 text-xs font-bold text-foreground">
+                            <h4 className="mt-2.5 text-xs sm:text-sm font-bold text-foreground">
                                 কোনো ফি আদায়ের রেকর্ড পাওয়া যায়নি
                             </h4>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 max-w-xs">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 max-w-xs">
                                 উপরে <strong>"+ নতুন ফি পোস্টিং"</strong> বাটনে ক্লিক করে আজকের সংগৃহীত ফি এন্ট্রি করুন।
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs">
-                                <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground">
-                                    <tr>
-                                        <th className="px-3 py-2.5">#</th>
-                                        <th className="px-3 py-2.5">তারিখ</th>
-                                        <th className="px-3 py-2.5">উপকারভোগীর নাম</th>
-                                        <th className="px-3 py-2.5">ধরণ</th>
-                                        <th className="px-3 py-2.5">বয়স ও মোবাইল</th>
-                                        <th className="px-3 py-2.5">সমিতি / গ্রাম</th>
-                                        <th className="px-3 py-2.5">ফি আদায়ের ধরণ ও মাত্রা</th>
-                                        <th className="px-3 py-2.5 text-right">আদায় (টাকা)</th>
-                                        <th className="px-3 py-2.5">মন্তব্য</th>
-                                        <th className="px-3 py-2.5 text-right">অ্যাকশন</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border">
-                                    {collections.data.map((item, idx) => (
-                                        <tr key={item.id} className="hover:bg-muted/15 transition-colors">
-                                            <td className="px-3 py-2.5 font-bold text-muted-foreground">
-                                                {(collections.current_page - 1) * collections.per_page + idx + 1}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">
-                                                {formatDate(item.collection_date)}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-bold text-foreground">
-                                                {item.beneficiary_name}
-                                            </td>
-                                            <td className="px-3 py-2.5">
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={`text-[9px] px-1.5 py-0 h-4.5 ${
-                                                        item.beneficiary_type === 'সদস্য'
-                                                            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
-                                                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                                                    }`}
-                                                >
-                                                    {item.beneficiary_type}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-3 py-2.5">
-                                                <span className="font-medium text-foreground">
-                                                    {item.age ? `${item.age} ব.` : '—'}
-                                                </span>
-                                                {item.phone ? (
-                                                    <span className="text-[10px] text-muted-foreground ml-1">
-                                                        ({item.phone})
-                                                    </span>
-                                                ) : null}
-                                            </td>
-                                            <td className="px-3 py-2.5 max-w-[140px] truncate text-foreground">
-                                                {item.location_info || '—'}
-                                            </td>
-                                            <td className="px-3 py-2.5">
+                        <>
+                            {/* MOBILE CARDS VIEW (< 768px) */}
+                            <div className="grid gap-2.5 p-3 md:hidden">
+                                {collections.data.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex flex-col gap-2 rounded-2xl border border-border/80 bg-background/60 p-3.5 shadow-2xs"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground text-[10px] font-bold">
+                                                        {(collections.current_page - 1) * collections.per_page + idx + 1}
+                                                    </span>
+                                                    <h4 className="text-sm font-bold text-foreground truncate">
+                                                        {item.beneficiary_name}
+                                                    </h4>
                                                     <Badge
-                                                        variant="outline"
-                                                        className={`text-[9px] px-1.5 py-0 h-4.5 font-semibold ${
-                                                            item.collection_type === 'ডায়াবেটিস পরীক্ষা'
-                                                                ? 'border-rose-500/40 text-rose-700 dark:text-rose-300 bg-rose-500/10'
-                                                                : item.collection_type === 'স্ট্যাটিক ক্লিনিক'
-                                                                ? 'border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10'
-                                                                : 'border-border text-foreground'
+                                                        variant="secondary"
+                                                        className={`text-[9px] px-1.5 py-0 h-4.5 ${
+                                                            item.beneficiary_type === 'সদস্য'
+                                                                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                                                                : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                                                         }`}
                                                     >
-                                                        {item.collection_type}
+                                                        {item.beneficiary_type}
                                                     </Badge>
-
-                                                    {item.diabetes_reading ? (
-                                                        <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1 py-0.5 rounded border border-rose-500/30">
-                                                            {item.diabetes_reading}
-                                                        </span>
-                                                    ) : null}
                                                 </div>
-                                            </td>
-                                            <td className="px-3 py-2.5 text-right">
-                                                <span className="inline-flex items-center font-bold text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
-                                                    ৳{Number(item.amount).toLocaleString()}
+                                                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                                                    <Calendar className="size-3 shrink-0" />
+                                                    <span>{formatDate(item.collection_date)}</span>
+                                                    {item.age ? <span>• {item.age} বছর</span> : null}
+                                                    {item.phone ? <span>• 📞 {item.phone}</span> : null}
+                                                </p>
+                                            </div>
+
+                                            <span className="inline-flex items-center font-bold text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-xl border border-emerald-500/30 shrink-0">
+                                                ৳{Number(item.amount).toLocaleString()}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/60">
+                                            <Badge
+                                                variant="outline"
+                                                className={`text-[9px] px-2 py-0.5 font-semibold ${
+                                                    item.collection_type === 'ডায়াবেটিস পরীক্ষা'
+                                                        ? 'border-rose-500/40 text-rose-700 dark:text-rose-300 bg-rose-500/10'
+                                                        : item.collection_type === 'স্ট্যাটিক ক্লিনিক'
+                                                        ? 'border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10'
+                                                        : 'border-border text-foreground'
+                                                }`}
+                                            >
+                                                {item.collection_type}
+                                            </Badge>
+
+                                            {item.diabetes_reading ? (
+                                                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-lg border border-rose-500/30">
+                                                    মাত্রা: {item.diabetes_reading}
                                                 </span>
-                                            </td>
-                                            <td className="px-3 py-2.5 max-w-[120px] truncate text-muted-foreground text-[10px]">
-                                                {item.notes || '—'}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-right">
+                                            ) : null}
+
+                                            {item.location_info ? (
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1 truncate max-w-[150px]">
+                                                    <MapPin className="size-3 shrink-0 text-muted-foreground" />
+                                                    {item.location_info}
+                                                </span>
+                                            ) : null}
+
+                                            <div className="ml-auto">
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleDelete(item.id)}
                                                     className="size-7 p-0 rounded-lg text-destructive hover:bg-destructive/10"
+                                                    title="মুছে ফেলুন"
                                                 >
-                                                    <Trash2 className="size-3" />
+                                                    <Trash2 className="size-3.5" />
                                                 </Button>
-                                            </td>
+                                            </div>
+                                        </div>
+
+                                        {item.notes ? (
+                                            <p className="text-[10px] text-muted-foreground italic bg-muted/30 px-2 py-1 rounded-lg">
+                                                মন্তব্য: {item.notes}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* DESKTOP TABLE VIEW (>= 768px) */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground">
+                                        <tr>
+                                            <th className="px-3 py-2.5">#</th>
+                                            <th className="px-3 py-2.5">তারিখ</th>
+                                            <th className="px-3 py-2.5">উপকারভোগীর নাম</th>
+                                            <th className="px-3 py-2.5">ধরণ</th>
+                                            <th className="px-3 py-2.5">বয়স ও মোবাইল</th>
+                                            <th className="px-3 py-2.5">সমিতি / গ্রাম</th>
+                                            <th className="px-3 py-2.5">ফি আদায়ের ধরণ ও মাত্রা</th>
+                                            <th className="px-3 py-2.5 text-right">আদায় (টাকা)</th>
+                                            <th className="px-3 py-2.5">মন্তব্য</th>
+                                            <th className="px-3 py-2.5 text-right">অ্যাকশন</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {collections.data.map((item, idx) => (
+                                            <tr key={item.id} className="hover:bg-muted/15 transition-colors">
+                                                <td className="px-3 py-2.5 font-bold text-muted-foreground">
+                                                    {(collections.current_page - 1) * collections.per_page + idx + 1}
+                                                </td>
+                                                <td className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">
+                                                    {formatDate(item.collection_date)}
+                                                </td>
+                                                <td className="px-3 py-2.5 font-bold text-foreground">
+                                                    {item.beneficiary_name}
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={`text-[9px] px-1.5 py-0 h-4.5 ${
+                                                            item.beneficiary_type === 'সদস্য'
+                                                                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                                                                : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                                                        }`}
+                                                    >
+                                                        {item.beneficiary_type}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <span className="font-medium text-foreground">
+                                                        {item.age ? `${item.age} ব.` : '—'}
+                                                    </span>
+                                                    {item.phone ? (
+                                                        <span className="text-[10px] text-muted-foreground ml-1">
+                                                            ({item.phone})
+                                                        </span>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-3 py-2.5 max-w-[140px] truncate text-foreground">
+                                                    {item.location_info || '—'}
+                                                </td>
+                                                <td className="px-3 py-2.5">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`text-[9px] px-1.5 py-0 h-4.5 font-semibold ${
+                                                                item.collection_type === 'ডায়াবেটিস পরীক্ষা'
+                                                                    ? 'border-rose-500/40 text-rose-700 dark:text-rose-300 bg-rose-500/10'
+                                                                    : item.collection_type === 'স্ট্যাটিক ক্লিনিক'
+                                                                    ? 'border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10'
+                                                                    : 'border-border text-foreground'
+                                                            }`}
+                                                        >
+                                                            {item.collection_type}
+                                                        </Badge>
+
+                                                        {item.diabetes_reading ? (
+                                                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1 py-0.5 rounded border border-rose-500/30">
+                                                                {item.diabetes_reading}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right">
+                                                    <span className="inline-flex items-center font-bold text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                                                        ৳{Number(item.amount).toLocaleString()}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2.5 max-w-[120px] truncate text-muted-foreground text-[10px]">
+                                                    {item.notes || '—'}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDelete(item.id)}
+                                                        className="size-7 p-0 rounded-lg text-destructive hover:bg-destructive/10"
+                                                    >
+                                                        <Trash2 className="size-3" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
 
                     {/* Pagination */}
                     {collections.last_page > 1 ? (
-                        <div className="p-3 border-t flex items-center justify-between text-xs">
+                        <div className="p-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                             <span className="text-muted-foreground text-[11px]">
                                 পৃষ্ঠা {collections.current_page} এর {collections.last_page} (মোট {collections.total} টি)
                             </span>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
                                 {collections.links.map((link, idx) => (
                                     <Button
                                         key={idx}

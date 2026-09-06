@@ -84,7 +84,7 @@ export function MobileBottomNav() {
 
     return (
         <>
-            <div className="fixed inset-x-0 bottom-0 z-40 block border-t border-border/80 bg-background/95 backdrop-blur-lg shadow-lg md:hidden">
+            <div className="fixed inset-x-0 bottom-0 z-40 block border-t border-border/80 bg-background/95 backdrop-blur-lg shadow-lg md:hidden pb-safe">
                 <div className="mx-auto flex h-16 max-w-md items-center justify-around px-2">
                     {/* 1. Dashboard / Today */}
                     <Link

@@ -25,8 +25,8 @@ export default function Welcome() {
             <Head title="M Care — Health Staff Activity & Reporting Hub" />
             <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
                 {/* Modern Navbar */}
-                <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/70 bg-background/80 px-6 backdrop-blur-md">
-                    <div className="flex items-center gap-3">
+                <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/70 bg-background/80 px-4 sm:px-6 backdrop-blur-md">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
                             <HeartPulse className="size-5" />
                         </div>
@@ -40,19 +40,19 @@ export default function Welcome() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         {auth.user ? (
-                            <Button asChild className="rounded-xl font-medium shadow-xs">
+                            <Button asChild className="rounded-xl font-medium shadow-xs text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4">
                                 <Link href={dashboard()}>
-                                    Go to Dashboard
-                                    <ArrowRight className="size-4 ml-1" />
+                                    Dashboard
+                                    <ArrowRight className="size-3.5 sm:size-4 ml-1" />
                                 </Link>
                             </Button>
                         ) : (
-                            <Button asChild className="rounded-xl font-medium shadow-xs">
+                            <Button asChild className="rounded-xl font-medium shadow-xs text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4">
                                 <Link href={login()}>
                                     Officer Sign In
-                                    <ArrowRight className="size-4 ml-1" />
+                                    <ArrowRight className="size-3.5 sm:size-4 ml-1" />
                                 </Link>
                             </Button>
                         )}
@@ -61,35 +61,35 @@ export default function Welcome() {
 
                 {/* Hero Section */}
                 <main className="flex-1">
-                    <section className="relative overflow-hidden px-6 py-16 md:py-24 max-w-6xl mx-auto">
+                    <section className="relative overflow-hidden px-4 sm:px-6 py-12 md:py-24 max-w-6xl mx-auto">
                         <div className="absolute -top-40 right-0 -z-10 size-96 rounded-full bg-primary/15 blur-3xl" />
                         <div className="absolute top-20 left-0 -z-10 size-80 rounded-full bg-teal-500/10 blur-3xl" />
 
-                        <div className="flex flex-col items-center text-center space-y-6 max-w-3xl mx-auto">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-semibold text-primary">
+                        <div className="flex flex-col items-center text-center space-y-5 sm:space-y-6 max-w-3xl mx-auto">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-[11px] sm:text-xs font-semibold text-primary">
                                 <Sparkles className="size-3.5" />
                                 <span>HRM Integrated Health Management System</span>
                             </div>
 
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
                                 Smarter Daily Fieldwork for{' '}
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-teal-500 to-emerald-600">
                                     Health Officers
                                 </span>
                             </h1>
 
-                            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                            <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl">
                                 Record Uthan Boithok yard meetings, satellite outreach clinics,
                                 awareness sessions, household visits, and static branch services
                                 seamlessly from an all-in-one mobile-friendly dashboard.
                             </p>
 
-                            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 w-full sm:w-auto">
                                 {auth.user ? (
                                     <Button
                                         size="lg"
                                         asChild
-                                        className="rounded-xl px-8 h-12 text-sm font-semibold shadow-md shadow-primary/20"
+                                        className="w-full sm:w-auto rounded-xl px-8 h-11 sm:h-12 text-sm font-semibold shadow-md shadow-primary/20"
                                     >
                                         <Link href={dashboard()}>
                                             Open Today's Hub
@@ -100,7 +100,7 @@ export default function Welcome() {
                                     <Button
                                         size="lg"
                                         asChild
-                                        className="rounded-xl px-8 h-12 text-sm font-semibold shadow-md shadow-primary/20"
+                                        className="w-full sm:w-auto rounded-xl px-8 h-11 sm:h-12 text-sm font-semibold shadow-md shadow-primary/20"
                                     >
                                         <Link href={login()}>
                                             Get Started
@@ -111,18 +111,18 @@ export default function Welcome() {
                             </div>
 
                             {/* Trust Pill Bar */}
-                            <div className="flex flex-wrap items-center justify-center gap-4 pt-6 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-4 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                                    Mobile-Ready Bottom Navigation
+                                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                                    Mobile-Ready Navigation
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
                                     Single-Screen Quick Entry
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                                    Live HRM Branch & Staff Sync
+                                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                                    Live HRM Branch Sync
                                 </span>
                             </div>
                         </div>

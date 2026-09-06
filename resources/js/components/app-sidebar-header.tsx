@@ -1,9 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Building2, CheckCircle2, Moon, Settings, Sun, TrendingUp } from 'lucide-react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppearance } from '@/hooks/use-appearance';
+import { dashboard } from '@/routes';
 import type { Auth, BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function AppSidebarHeader({
@@ -20,13 +22,34 @@ export function AppSidebarHeader({
     };
 
     return (
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border/60 bg-background/80 px-4 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-6">
-            <div className="flex items-center gap-2 overflow-hidden">
-                <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
-                <Breadcrumbs breadcrumbs={breadcrumbs} />
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border/60 bg-background/80 px-3.5 sm:px-4 md:px-6 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 gap-2">
+            {/* Mobile Header: App Logo & Name (Replaces sidebar icon on mobile) */}
+            <Link
+                href={dashboard()}
+                className="flex items-center gap-2.5 md:hidden min-w-0 shrink-0"
+            >
+                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-teal-500 text-white shadow-xs shadow-primary/20 ring-1 ring-white/20">
+                    <AppLogoIcon className="size-4.5" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-bold tracking-tight text-foreground">
+                        M Care
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.2 text-[9px] font-bold text-primary">
+                        PRO
+                    </span>
+                </div>
+            </Link>
+
+            {/* Desktop Header: Sidebar Trigger & Breadcrumbs */}
+            <div className="hidden md:flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground shrink-0" />
+                <div className="min-w-0 truncate text-xs sm:text-sm">
+                    <Breadcrumbs breadcrumbs={breadcrumbs} />
+                </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs shrink-0">
                 {user?.can_view_analytics || user?.role === 'admin' || user?.role === 'branch-manager' ? (
                     <Button
                         variant="ghost"

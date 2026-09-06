@@ -73,8 +73,14 @@ function NavBadge({
 
 export function NavMain({ label, items = [], className }: NavMainProps) {
     const { isItemActive, isParentActive } = useCurrentUrl();
-    const { state, isMobile } = useSidebar();
+    const { state, isMobile, setOpenMobile } = useSidebar();
     const isCollapsed = state === 'collapsed' && !isMobile;
+
+    const handleLinkClick = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
 
     if (!items.length) return null;
 
@@ -168,6 +174,7 @@ export function NavMain({ label, items = [], className }: NavMainProps) {
                                                                     subItem.href
                                                                 }
                                                                 prefetch
+                                                                onClick={handleLinkClick}
                                                                 className="flex w-full items-center gap-2 px-2 py-1.5"
                                                             >
                                                                 {SubIcon ? (
@@ -284,6 +291,7 @@ export function NavMain({ label, items = [], className }: NavMainProps) {
                                                                         subItem.href
                                                                     }
                                                                     prefetch
+                                                                    onClick={handleLinkClick}
                                                                     className="flex items-center gap-2"
                                                                 >
                                                                     {SubIcon ? (
@@ -348,6 +356,7 @@ export function NavMain({ label, items = [], className }: NavMainProps) {
                                     <Link
                                         href={item.href || '#'}
                                         prefetch
+                                        onClick={handleLinkClick}
                                         className="flex items-center gap-2.5"
                                     >
                                         {Icon && (

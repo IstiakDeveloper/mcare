@@ -65,7 +65,7 @@ export default function TaskForm({
         <>
             <Head title={`${title} — M Care Form`} />
 
-            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 md:p-6 pb-24 md:pb-6">
                 <div>
                     <Link
                         href={
@@ -309,11 +309,11 @@ export default function TaskForm({
                         />
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                    <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-4 border-t">
                         <Button
                             variant="ghost"
                             asChild
-                            className="rounded-xl text-xs font-medium"
+                            className="w-full sm:w-auto rounded-xl text-xs font-medium h-9"
                         >
                             <Link href={dashboard()}>বাতিল (Cancel)</Link>
                         </Button>
@@ -321,7 +321,7 @@ export default function TaskForm({
                         <Button
                             type="submit"
                             disabled={form.processing}
-                            className="rounded-xl px-6 font-semibold shadow-xs text-xs"
+                            className="w-full sm:w-auto rounded-xl px-6 font-semibold shadow-xs text-xs h-10"
                         >
                             {form.processing ? (
                                 <Spinner className="mr-2" />

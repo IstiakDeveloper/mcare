@@ -512,23 +512,23 @@ export default function HouseholdSession({
                         </Card>
 
                         {/* Sticky Bottom Action Bar (Discard vs Final Submit & Close) */}
-                        <div className="sticky bottom-4 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-background/95 p-4 shadow-xl backdrop-blur-md">
-                            <div className="flex items-center gap-2">
+                        <div className="sticky bottom-20 md:bottom-4 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-background/95 p-3.5 sm:p-4 shadow-xl backdrop-blur-md">
+                            <div className="flex items-center justify-between sm:justify-start gap-2">
                                 <Badge variant="secondary" className="text-xs font-bold px-3 py-1 bg-blue-500/15 text-blue-700 dark:text-blue-300">
                                     মোট খানা: {session.households.length}টি
                                 </Badge>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-muted-foreground font-medium">
                                     (সদস্য: {totalMembers} জন)
                                 </span>
                             </div>
 
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <div className="flex items-center gap-2 justify-end sm:self-auto flex-wrap sm:flex-nowrap">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={handleDiscardSession}
-                                    className="rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 border-destructive/30"
+                                    className="rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 border-destructive/30 flex-1 sm:flex-initial h-9"
                                 >
                                     <Trash2 className="size-3.5 mr-1" />
                                     সেশন বাতিল
@@ -538,7 +538,7 @@ export default function HouseholdSession({
                                     type="button"
                                     disabled={isSubmitting || session.households.length === 0}
                                     onClick={handleFinalSubmit}
-                                    className="h-10 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer"
+                                    className="h-9 sm:h-10 px-4 sm:px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer flex-2 sm:flex-initial"
                                 >
                                     {isSubmitting ? (
                                         <Spinner className="mr-2" />
