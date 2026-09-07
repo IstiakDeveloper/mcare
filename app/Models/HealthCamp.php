@@ -53,4 +53,12 @@ class HealthCamp extends Model
     {
         return $this->belongsTo(User::class, 'entered_by');
     }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'entered_by');
+    }
 }

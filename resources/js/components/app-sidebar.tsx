@@ -11,11 +11,13 @@ import {
     LayoutGrid,
     Receipt,
     RefreshCw,
+    Shield,
     ShieldAlert,
     ShieldCheck,
     Sparkles,
     Stethoscope,
     Tent,
+    UserCheck,
     Users,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -60,7 +62,7 @@ export function AppSidebar() {
     }, [setOpenMobile]);
 
     const handleSyncHrm = () => {
-        if (!confirm('আপনি কি HRM সিস্টেমের সাথে সরাসরি লাইভ ডেটা সিঙ্ক করতে চান?')) {
+        if (!confirm('Do you want to initiate a live reference data sync with the HRM system?')) {
             return;
         }
 
@@ -75,8 +77,39 @@ export function AppSidebar() {
         );
     };
 
-    // 1. Operations Navigation Items
-    const operationsNavItems: NavItem[] = [
+    const isAdmin = Boolean(user?.role === 'admin');
+
+    // 1. ADMIN EXCLUSIVE NAVIGATION
+    const adminMainItems: NavItem[] = [
+        {
+            title: 'Monitoring Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+    ];
+
+    const adminManagementItems: NavItem[] = [
+        {
+            title: 'User Management',
+            href: '/admin/users',
+            icon: Users,
+            badge: 'Admin',
+            badgeVariant: 'secondary',
+        },
+        {
+            title: 'Activity Logs (All Staff)',
+            href: '/activities',
+            icon: ClipboardList,
+        },
+        {
+            title: 'Reports & Analytics',
+            href: '/reports',
+            icon: FileText,
+        },
+    ];
+
+    // 2. FIELD WORKER / MANAGER OPERATIONS NAVIGATION
+    const workerOperationsItems: NavItem[] = [
         {
             title: "Today's Tasks",
             href: dashboard(),
@@ -145,8 +178,7 @@ export function AppSidebar() {
         },
     ];
 
-    // 2. Reports & Registers Navigation Items
-    const reportsNavItems: NavItem[] = [
+    const workerReportsItems: NavItem[] = [
         {
             title: 'Activity Summary',
             href: '/reports?report_type=activities',
@@ -169,16 +201,16 @@ export function AppSidebar() {
         },
     ];
 
-    // 3. System & Settings Navigation Items
+    // 3. SYSTEM NAVIGATION
     const systemNavItems: NavItem[] = [
         {
-            title: 'Settings & Password',
+            title: 'Profile & Security',
             href: '/settings/profile',
             icon: ShieldCheck,
         },
     ];
 
-    const canSync = Boolean(user?.can_sync_hrm || user?.role === 'admin');
+    const canSync = Boolean(user?.can_sync_hrm || isAdmin);
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -202,16 +234,23 @@ export function AppSidebar() {
 
             {/* Main Navigation Content */}
             <SidebarContent className="space-y-1 px-1 py-2">
-                {/* Operations Section */}
-                <NavMain label="Operations" items={operationsNavItems} />
+                {isAdmin ? (
+                    <>
+                        {/* Admin Sections Only */}
+                        <NavMain label="Overview" items={adminMainItems} />
+                        <NavMain label="Administration" items={adminManagementItems} />
+                        <NavMain label="System" items={systemNavItems} />
+                    </>
+                ) : (
+                    <>
+                        {/* Worker / Field Staff Sections */}
+                        <NavMain label="Operations & Entry" items={workerOperationsItems} />
+                        <NavMain label="Reports & Registers" items={workerReportsItems} />
+                        <NavMain label="System" items={systemNavItems} />
+                    </>
+                )}
 
-                {/* Reports & Registers Section */}
-                <NavMain label="Reports & Registers" items={reportsNavItems} />
-
-                {/* System & HRM Sync Section */}
-                <NavMain label="System" items={systemNavItems} />
-
-                {/* Live HRM Sync Action */}
+                {/* Live HRM Sync Action (Admin Only) */}
                 {canSync ? (
                     <SidebarGroup className="px-2 py-1">
                         <SidebarGroupLabel className="px-2 text-[10px] font-bold tracking-wider text-muted-foreground/75 uppercase">

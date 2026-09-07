@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
+    AlertCircle,
     ArrowLeft,
     Building2,
     Calendar,
@@ -14,6 +15,7 @@ import {
     MapPin,
     Plus,
     Printer,
+    Trash2,
     User,
     Users,
 } from 'lucide-react';
@@ -22,6 +24,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -107,13 +110,26 @@ export default function ActivityShow({ activity }: Props) {
     const taskTitle =
         activity.task_subtype?.name ?? activity.task_type?.name ?? 'Daily Activity';
 
+    const { props: pageProps } = usePage<{ auth?: { user?: { role?: string } } }>();
+    const isAdmin = pageProps.auth?.user?.role === 'admin';
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = () => {
+        setIsDeleting(true);
+        router.delete(`/activities/${activity.id}`, {
+            onSuccess: () => setIsDeleting(false),
+            onError: () => setIsDeleting(false),
+        });
+    };
+
     return (
         <>
             <Head title={`${taskTitle} Report — M Care`} />
 
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 md:p-6">
                 {/* Back navigation & Actions */}
-                <div className="flex items-center justify-between print:hidden">
+                <div className="flex items-center justify-between print:hidden flex-wrap gap-2">
                     <Link
                         href="/activities"
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
@@ -123,6 +139,17 @@ export default function ActivityShow({ activity }: Props) {
                     </Link>
 
                     <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDeleteModalOpen(true)}
+                                className="rounded-xl text-xs border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+                            >
+                                <Trash2 className="size-3.5 mr-1" />
+                                Delete Record
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
@@ -588,6 +615,44 @@ export default function ActivityShow({ activity }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* ADMIN DELETE CONFIRMATION DIALOG */}
+            <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                <DialogContent className="sm:max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-base font-bold text-destructive">
+                            <AlertCircle className="size-5 text-destructive" /> Delete Activity Record?
+                        </DialogTitle>
+                        <DialogDescription className="text-xs leading-relaxed">
+                            Are you sure you want to permanently delete this {taskTitle} record submitted by{' '}
+                            <strong>{activity.user?.name}</strong> on <strong>{activity.activity_date}</strong>?
+                            This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter className="pt-2 gap-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteModalOpen(false)}
+                            className="rounded-xl text-xs"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={isDeleting}
+                            onClick={handleDelete}
+                            className="rounded-xl text-xs font-bold"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Yes, Delete Record'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

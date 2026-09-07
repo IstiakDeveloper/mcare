@@ -5,6 +5,7 @@ import {
     Building2,
     ChevronRight,
     ClipboardList,
+    FileText,
     HeartPulse,
     Home,
     Layers,
@@ -32,9 +33,12 @@ import {
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAppearance } from '@/hooks/use-appearance';
 import { dashboard } from '@/routes';
+import type { Auth } from '@/types';
 
 export function MobileBottomNav() {
-    const { url } = usePage();
+    const { url, props } = usePage<{ auth?: Auth }>();
+    const user = props.auth?.user;
+    const isAdmin = user?.role === 'admin';
     const { setOpenMobile } = useSidebar();
     const [quickMenuOpen, setQuickMenuOpen] = useState(false);
     const [sheetStep, setSheetStep] = useState<'main_categories' | 'samity_subtypes'>(
@@ -43,6 +47,8 @@ export function MobileBottomNav() {
     const { resolvedAppearance, updateAppearance } = useAppearance();
 
     const isDashboard = url === '/dashboard' || url === '/';
+    const isUsers = url.startsWith('/admin/users');
+    const isReports = url.startsWith('/reports');
     const isActivities = url.startsWith('/activities');
     const isHealthCamps = url.startsWith('/health-camps');
 
@@ -84,97 +90,191 @@ export function MobileBottomNav() {
 
     return (
         <>
-            <div className="fixed inset-x-0 bottom-0 z-40 block border-t border-border/80 bg-background/95 backdrop-blur-lg shadow-lg md:hidden pb-safe">
+            <div data-mobile-nav className="fixed inset-x-0 bottom-0 z-40 block border-t border-border/80 bg-background/95 backdrop-blur-lg shadow-lg md:hidden pb-safe print:hidden no-print">
                 <div className="mx-auto flex h-16 max-w-md items-center justify-around px-2">
-                    {/* 1. Dashboard / Today */}
-                    <Link
-                        href={dashboard()}
-                        className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
-                            isDashboard
-                                ? 'text-primary font-bold'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        <div
-                            className={`flex size-8 items-center justify-center rounded-full transition-all ${
-                                isDashboard
-                                    ? 'bg-primary/15 text-primary scale-110'
-                                    : ''
-                            }`}
-                        >
-                            <Home className="size-5" />
-                        </div>
-                        <span className="text-[10px] tracking-tight font-medium">Today</span>
-                    </Link>
+                    {isAdmin ? (
+                        <>
+                            {/* Admin Tab 1: Dashboard */}
+                            <Link
+                                href={dashboard()}
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isDashboard
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isDashboard ? 'bg-primary/15 text-primary scale-110' : ''
+                                    }`}
+                                >
+                                    <Home className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Dashboard</span>
+                            </Link>
 
-                    {/* 2. Activities Log */}
-                    <Link
-                        href="/activities"
-                        className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
-                            isActivities
-                                ? 'text-primary font-bold'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        <div
-                            className={`flex size-8 items-center justify-center rounded-full transition-all ${
-                                isActivities
-                                    ? 'bg-primary/15 text-primary scale-110'
-                                    : ''
-                            }`}
-                        >
-                            <ClipboardList className="size-5" />
-                        </div>
-                        <span className="text-[10px] tracking-tight font-medium">Activities</span>
-                    </Link>
+                            {/* Admin Tab 2: Users */}
+                            <Link
+                                href="/admin/users"
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isUsers
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isUsers ? 'bg-primary/15 text-primary scale-110' : ''
+                                    }`}
+                                >
+                                    <Users className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Users</span>
+                            </Link>
 
-                    {/* 3. Quick Center Action Button */}
-                    <div className="flex flex-1 flex-col items-center justify-center -translate-y-3">
-                        <button
-                            type="button"
-                            onClick={handleOpenSheet}
-                            className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-background transition-transform active:scale-95 hover:scale-105 cursor-pointer"
-                            aria-label="New Task Entry"
-                        >
-                            <Plus className="size-6 stroke-[2.5]" />
-                        </button>
-                        <span className="mt-0.5 text-[10px] font-bold text-foreground">
-                            New Log
-                        </span>
-                    </div>
+                            {/* Admin Tab 3: Activities */}
+                            <Link
+                                href="/activities"
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isActivities
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isActivities ? 'bg-primary/15 text-primary scale-110' : ''
+                                    }`}
+                                >
+                                    <ClipboardList className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Activities</span>
+                            </Link>
 
-                    {/* 4. Health Camps */}
-                    <Link
-                        href="/health-camps"
-                        className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
-                            isHealthCamps
-                                ? 'text-amber-600 dark:text-amber-400 font-bold'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        <div
-                            className={`flex size-8 items-center justify-center rounded-full transition-all ${
-                                isHealthCamps
-                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 scale-110'
-                                    : ''
-                            }`}
-                        >
-                            <Tent className="size-5" />
-                        </div>
-                        <span className="text-[10px] tracking-tight font-medium">Camps</span>
-                    </Link>
+                            {/* Admin Tab 4: Reports */}
+                            <Link
+                                href="/reports"
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isReports
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isReports ? 'bg-primary/15 text-primary scale-110' : ''
+                                    }`}
+                                >
+                                    <FileText className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Reports</span>
+                            </Link>
 
-                    {/* 5. Mobile Sidebar Menu Trigger (Replaced Settings) */}
-                    <button
-                        type="button"
-                        onClick={() => setOpenMobile(true)}
-                        className="flex flex-1 flex-col items-center justify-center py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                        <div className="flex size-8 items-center justify-center rounded-full hover:bg-muted/60 transition-all">
-                            <Menu className="size-5" />
-                        </div>
-                        <span className="text-[10px] tracking-tight font-medium">Menu</span>
-                    </button>
+                            {/* Admin Tab 4: Menu */}
+                            <button
+                                type="button"
+                                onClick={() => setOpenMobile(true)}
+                                className="flex flex-1 flex-col items-center justify-center py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                            >
+                                <div className="flex size-8 items-center justify-center rounded-full hover:bg-muted/60 transition-all">
+                                    <Menu className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Menu</span>
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            {/* Worker Tab 1: Today */}
+                            <Link
+                                href={dashboard()}
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isDashboard
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isDashboard
+                                            ? 'bg-primary/15 text-primary scale-110'
+                                            : ''
+                                    }`}
+                                >
+                                    <Home className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Today</span>
+                            </Link>
+
+                            {/* Worker Tab 2: Activities */}
+                            <Link
+                                href="/activities"
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isActivities
+                                        ? 'text-primary font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isActivities
+                                            ? 'bg-primary/15 text-primary scale-110'
+                                            : ''
+                                    }`}
+                                >
+                                    <ClipboardList className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Activities</span>
+                            </Link>
+
+                            {/* Worker Tab 3: Center Plus Button */}
+                            <div className="flex flex-1 flex-col items-center justify-center -translate-y-3">
+                                <button
+                                    type="button"
+                                    onClick={handleOpenSheet}
+                                    className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-background transition-transform active:scale-95 hover:scale-105 cursor-pointer"
+                                    aria-label="New Task Entry"
+                                >
+                                    <Plus className="size-6 stroke-[2.5]" />
+                                </button>
+                                <span className="mt-0.5 text-[10px] font-bold text-foreground">
+                                    New Log
+                                </span>
+                            </div>
+
+                            {/* Worker Tab 4: Camps */}
+                            <Link
+                                href="/health-camps"
+                                className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${
+                                    isHealthCamps
+                                        ? 'text-amber-600 dark:text-amber-400 font-bold'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <div
+                                    className={`flex size-8 items-center justify-center rounded-full transition-all ${
+                                        isHealthCamps
+                                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 scale-110'
+                                            : ''
+                                    }`}
+                                >
+                                    <Tent className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Camps</span>
+                            </Link>
+
+                            {/* Worker Tab 5: Menu */}
+                            <button
+                                type="button"
+                                onClick={() => setOpenMobile(true)}
+                                className="flex flex-1 flex-col items-center justify-center py-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                            >
+                                <div className="flex size-8 items-center justify-center rounded-full hover:bg-muted/60 transition-all">
+                                    <Menu className="size-5" />
+                                </div>
+                                <span className="text-[10px] tracking-tight font-medium">Menu</span>
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -203,18 +303,16 @@ export function MobileBottomNav() {
                                         </div>
                                     </div>
 
-                                    {/* Theme Toggle */}
+                                    {/* Theme Toggle (Hydration Safe) */}
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={toggleTheme}
                                         className="size-8 rounded-full p-0"
+                                        aria-label="Toggle theme"
                                     >
-                                        {resolvedAppearance === 'dark' ? (
-                                            <Sun className="size-4 text-amber-400" />
-                                        ) : (
-                                            <Moon className="size-4 text-slate-700" />
-                                        )}
+                                        <Sun className="hidden size-4 text-amber-400 dark:block" />
+                                        <Moon className="block size-4 text-slate-700 dark:hidden" />
                                     </Button>
                                 </div>
                             </SheetHeader>

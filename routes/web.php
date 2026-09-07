@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminHrmSyncController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttachmentUploadController;
 use App\Http\Controllers\DailyActivityController;
 use App\Http\Controllers\DashboardController;
@@ -47,6 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activities', [DailyActivityController::class, 'index'])->name('activities.index');
     Route::post('activities', [DailyActivityController::class, 'store'])->name('activities.store');
     Route::get('activities/{activity}', [DailyActivityController::class, 'show'])->name('activities.show');
+    Route::put('activities/{activity}', [DailyActivityController::class, 'update'])->name('activities.update');
+    Route::delete('activities/{activity}', [DailyActivityController::class, 'destroy'])->name('activities.destroy');
 
     Route::get('health-camps', [HealthCampController::class, 'index'])->name('health-camps.index');
     Route::get('health-camps/create', [HealthCampController::class, 'create'])->name('health-camps.create');
@@ -58,6 +61,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('fee-collections/{feeCollection}', [FeeCollectionController::class, 'destroy'])->name('fee-collections.destroy');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+    Route::post('admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::put('admin/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+    Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
     Route::post('admin/sync-hrm', [AdminHrmSyncController::class, 'sync'])->name('admin.hrm.sync');
     Route::get('admin/sync-status', [AdminHrmSyncController::class, 'status'])->name('admin.hrm.status');
 

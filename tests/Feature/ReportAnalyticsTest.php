@@ -3,6 +3,7 @@
 use App\Models\Branch;
 use App\Models\DailyActivity;
 use App\Models\FeeCollection;
+use App\Models\HealthCamp;
 use App\Models\Role;
 use App\Models\TaskType;
 use App\Models\User;
@@ -29,6 +30,16 @@ test('authenticated users can access reports center with date to date filters', 
             'village' => 'Test Village',
             'samity_name' => 'Test Samity',
             'attendees_count' => 15,
+        ],
+    ]);
+
+    HealthCamp::create([
+        'branch_id' => $branch->id,
+        'entered_by' => $worker->id,
+        'activity_date' => now()->toDateString(),
+        'service_data' => [
+            'camp_name' => 'Free Health Camp',
+            'patients_served' => 30,
         ],
     ]);
 

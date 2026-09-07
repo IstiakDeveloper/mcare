@@ -23,8 +23,10 @@ import {
     Stethoscope,
     Tent,
     TrendingUp,
+    User,
     UserCheck,
     Users,
+    X,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -88,12 +90,33 @@ type BranchMatrixItem = {
     households_visited: number;
 };
 
+type OfficerMatrixItem = {
+    user_id: number;
+    name: string;
+    employee_code: string;
+    branch_name: string;
+    activities_count: number;
+    beneficiaries_count: number;
+    households_visited: number;
+    total_fee_collected: number;
+};
+
+type OfficerOption = {
+    id: number;
+    name: string;
+    employee_code?: string | null;
+    designation?: string | null;
+    branch_id?: number | null;
+    branch_name?: string | null;
+};
+
 type Props = {
-    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches';
+    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers';
     filters: {
         start_date: string;
         end_date: string;
         branch_id: string;
+        user_id?: string;
         report_type: string;
     };
     summary: {
@@ -111,22 +134,27 @@ type Props = {
     householdRecords: HouseholdRecord[];
     patientRecords: PatientRecord[];
     branchMatrix: BranchMatrixItem[];
+    officerMatrix: OfficerMatrixItem[];
     branches: BranchOption[];
+    officers?: OfficerOption[];
     today: string;
     user: {
         id: number;
         name: string;
-        role: string;
+        role: any;
+        is_admin?: boolean;
+        is_branch_manager?: boolean;
         branch_name: string;
     };
 };
 
 const REPORT_TABS = [
-    { key: 'activities', label: '১. সার্বিক কার্যক্রম রিপোর্ট', short: 'কার্যক্রম', icon: ClipboardListIcon },
-    { key: 'households', label: '২. খানা পরিদর্শন বিস্তারিত রিপোর্ট', short: 'খানা পরিদর্শন', icon: Home },
-    { key: 'fee_collections', label: '৩. ফি আদায় ও ডায়াবেটিস রেজিস্টার', short: 'ফি আদায়', icon: Coins },
-    { key: 'patients', label: '৪. রোগী সেবা ও ক্লিনিক রেজিস্টার', short: 'রোগী রেজিস্টার', icon: Stethoscope },
-    { key: 'branches', label: '৫. শাখা পারফরম্যান্স ম্যাট্রিক্স', short: 'শাখা সামারি', icon: Building2 },
+    { key: 'activities', label: '1. Field Activities Summary', short: 'Activities', icon: ClipboardListIcon },
+    { key: 'households', label: '2. Household Visits Register', short: 'Households', icon: Home },
+    { key: 'fee_collections', label: '3. Fee & Diabetes Register', short: 'Fees & Diabetes', icon: Coins },
+    { key: 'patients', label: '4. Clinical Consultations Register', short: 'Patients', icon: Stethoscope },
+    { key: 'branches', label: '5. Branch Performance Matrix', short: 'Branch Matrix', icon: Building2 },
+    { key: 'officers', label: '6. Officer Performance Summary', short: 'Officer Matrix', icon: UserCheck },
 ];
 
 function ClipboardListIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -143,7 +171,9 @@ export default function ReportsIndex({
     householdRecords = [],
     patientRecords = [],
     branchMatrix = [],
+    officerMatrix = [],
     branches = [],
+    officers = [],
     today,
     user,
 }: Props) {
@@ -151,13 +181,22 @@ export default function ReportsIndex({
     const [startDate, setStartDate] = useState(filters.start_date || today);
     const [endDate, setEndDate] = useState(filters.end_date || today);
     const [branchId, setBranchId] = useState(filters.branch_id || 'all');
-    const [tableSearch, setTableSearch] = useState('');
+    const [userId, setUserId] = useState(filters.user_id || 'all');
 
-    const applyFilter = (newTab?: string, newStart?: string, newEnd?: string, newBranch?: string) => {
+    const isPrivileged = Boolean(user.is_admin || user.is_branch_manager || user.role?.slug === 'admin' || user.role?.slug === 'branch-manager');
+
+    // Filter officers for dropdown based on chosen branch
+    const filteredOfficersForDropdown = officers.filter((off) => {
+        if (branchId === 'all') return true;
+        return String(off.branch_id) === String(branchId);
+    });
+
+    const applyFilter = (newTab?: string, newStart?: string, newEnd?: string, newBranch?: string, newUser?: string) => {
         const t = newTab ?? activeTab;
         const s = newStart ?? startDate;
         const e = newEnd ?? endDate;
         const b = newBranch ?? branchId;
+        const u = newUser ?? userId;
 
         router.get(
             '/reports',
@@ -166,6 +205,7 @@ export default function ReportsIndex({
                 start_date: s,
                 end_date: e,
                 branch_id: b,
+                user_id: u,
             },
             { preserveState: true, preserveScroll: true },
         );
@@ -196,7 +236,7 @@ export default function ReportsIndex({
 
         setStartDate(s);
         setEndDate(e);
-        applyFilter(activeTab, s, e, branchId);
+        applyFilter(activeTab, s, e, branchId, userId);
     };
 
     const handlePrint = () => {
@@ -209,7 +249,7 @@ export default function ReportsIndex({
         let filename = `Mcare_Report_${activeTab}_${startDate}_to_${endDate}.csv`;
 
         if (activeTab === 'activities') {
-            rows.push(['ক্র. নং', 'তারিখ', 'শাখা', 'কার্যক্রমের ধরণ', 'সমিতি / স্থান', 'উপস্থিতি / সেবাগ্রহীতা', 'দায়িত্বপ্রাপ্ত কর্মকর্তা']);
+            rows.push(['SL', 'Date', 'Branch', 'Activity Type', 'Samity / Location', 'Attendees / Beneficiaries', 'Assigned Officer']);
             activities.forEach((act, idx) => {
                 const data = act.form_data || {};
                 const attendees = data.attendees_count || data.patients_served || data.members_visited || (Array.isArray(data.patients) ? data.patients.length : '0');
@@ -224,7 +264,7 @@ export default function ReportsIndex({
                 ]);
             });
         } else if (activeTab === 'households') {
-            rows.push(['ক্র. নং', 'তারিখ', 'শাখা', 'সমিতি', 'গ্রাম', 'খানা প্রধান', 'সদস্য সংখ্যা', 'গর্ভবতী মা', 'প্রসূতি মা', 'পুষ্টি সমস্যা', 'প্রতিবন্ধী', 'দীঘমেয়াদী রোগ', 'কর্মকর্তা']);
+            rows.push(['SL', 'Date', 'Branch', 'Samity', 'Village', 'Household Head', 'Members', 'Pregnant Mother', 'Postnatal Mother', 'Child Nutrition Issue', 'Disability', 'Chronic Illness', 'Officer']);
             householdRecords.forEach((h, idx) => {
                 const diseases = Object.keys(h.elderly_diseases || {}).join(', ');
                 rows.push([
@@ -235,16 +275,16 @@ export default function ReportsIndex({
                     h.village,
                     h.household_head,
                     String(h.member_count),
-                    h.has_pregnant ? 'হ্যাঁ' : 'না',
-                    h.has_postnatal ? 'হ্যাঁ' : 'না',
-                    h.child_nutrition_issue ? 'হ্যাঁ' : 'না',
-                    h.has_disability ? 'হ্যাঁ' : 'না',
-                    diseases || 'নেই',
+                    h.has_pregnant ? 'Yes' : 'No',
+                    h.has_postnatal ? 'Yes' : 'No',
+                    h.child_nutrition_issue ? 'Yes' : 'No',
+                    h.has_disability ? 'Yes' : 'No',
+                    diseases || 'None',
                     h.officer_name,
                 ]);
             });
         } else if (activeTab === 'fee_collections') {
-            rows.push(['ক্র. নং', 'তারিখ', 'শাখা', 'উপকারভোগীর নাম', 'ধরন', 'বয়স', 'মোবাইল', 'সমিতি / গ্রাম', 'ফি আদায়ের ধরণ', 'ডায়াবেটিস মাত্রা', 'আদায়কৃত ফি (টাকা)', 'মন্তব্য']);
+            rows.push(['SL', 'Date', 'Branch', 'Beneficiary Name', 'Type', 'Age', 'Phone', 'Samity / Village', 'Fee Category', 'Diabetes Reading', 'Fee Amount (BDT)', 'Officer', 'Remarks']);
             feeCollections.forEach((f, idx) => {
                 rows.push([
                     String(idx + 1),
@@ -252,18 +292,19 @@ export default function ReportsIndex({
                     f.branch?.name || '',
                     f.beneficiary_name,
                     f.beneficiary_type,
-                    f.age ? `${f.age} বছর` : '',
+                    f.age ? `${f.age} yrs` : '',
                     f.phone || '',
                     f.location_info || '',
                     f.collection_type,
                     f.diabetes_reading || '',
                     String(f.amount),
+                    f.user?.name || '',
                     f.notes || '',
                 ]);
             });
-            rows.push(['', '', '', '', '', '', '', '', '', 'সর্বমোট আদায়:', String(summary.total_fee_amount), '']);
+            rows.push(['', '', '', '', '', '', '', '', '', 'Grand Total:', String(summary.total_fee_amount), '', '']);
         } else if (activeTab === 'patients') {
-            rows.push(['ক্র. নং', 'তারিখ', 'শাখা', 'ক্লিনিকের ধরণ', 'রোগীর নাম', 'বয়স', 'লিঙ্গ', 'স্বাস্থ্য কার্ড', 'রোগের বিবরণ', 'পরামর্শ ও সেবা', 'কর্মকর্তা']);
+            rows.push(['SL', 'Date', 'Branch', 'Clinic Type', 'Patient Name', 'Age', 'Gender', 'Health Card', 'Diagnosis / Illness', 'Services & Advice', 'Officer']);
             patientRecords.forEach((p, idx) => {
                 rows.push([
                     String(idx + 1),
@@ -273,14 +314,14 @@ export default function ReportsIndex({
                     p.patient_name,
                     String(p.patient_age),
                     p.patient_gender,
-                    p.has_card ? 'কার্ড আছে' : 'কার্ড নেই',
+                    p.has_card ? 'Yes' : 'No',
                     p.disease,
                     p.advice,
                     p.officer_name,
                 ]);
             });
         } else if (activeTab === 'branches') {
-            rows.push(['ক্র. নং', 'শাখার নাম', 'শাখা কোড', 'মোট কার্যক্রম', 'মোট সেবাগ্রহীতা', 'পরিদর্শনকৃত খানা', 'ডায়াবেটিস পরীক্ষা', 'মোট আদায়কৃত ফি (টাকা)']);
+            rows.push(['SL', 'Branch Name', 'Branch Code', 'Total Activities', 'Total Beneficiaries', 'Households Visited', 'Diabetes Tests', 'Total Fee Collected (BDT)']);
             branchMatrix.forEach((b, idx) => {
                 rows.push([
                     String(idx + 1),
@@ -291,6 +332,20 @@ export default function ReportsIndex({
                     String(b.households_visited),
                     String(b.diabetes_tests_count),
                     String(b.total_fee_collected),
+                ]);
+            });
+        } else if (activeTab === 'officers') {
+            rows.push(['SL', 'Officer Name', 'Employee Code', 'Branch', 'Total Activities', 'Beneficiaries Served', 'Households Visited', 'Total Fee Collected (BDT)']);
+            officerMatrix.forEach((o, idx) => {
+                rows.push([
+                    String(idx + 1),
+                    o.name,
+                    o.employee_code,
+                    o.branch_name,
+                    String(o.activities_count),
+                    String(o.beneficiaries_count),
+                    String(o.households_visited),
+                    String(o.total_fee_collected),
                 ]);
             });
         }
@@ -306,26 +361,94 @@ export default function ReportsIndex({
         document.body.removeChild(link);
     };
 
+    const selectedBranchName = branchId !== 'all' ? branches.find((b) => String(b.id) === branchId)?.name : 'All Branches (সকল শাখা)';
+    const selectedOfficerName = userId !== 'all' ? officers.find((o) => String(o.id) === userId)?.name : 'All Officers (সকল কর্মকর্তা)';
+    const currentTabTitle = REPORT_TABS.find((t) => t.key === activeTab)?.label || 'Official Report';
+
     return (
         <>
-            <Head title="রিপোর্ট ও অ্যানালিটিক্স — M Care" />
+            <Head title="Reports & Analytics — M Care Health System" />
 
-            {/* PRINT-ONLY OFFICIAL HEADER */}
-            <div className="hidden print:block text-center border-b pb-3 mb-4 space-y-1">
-                <h1 className="text-xl font-bold uppercase tracking-wider text-black">
-                    M Care — স্বাস্থ্যসেবা কার্যক্রম প্রতিবেদন
-                </h1>
-                <p className="text-xs font-semibold text-gray-800">
-                    {REPORT_TABS.find((t) => t.key === activeTab)?.label}
-                </p>
-                <div className="flex items-center justify-between text-[10px] text-gray-600 pt-1">
-                    <span>রিপোর্ট সময়কাল: <strong>{formatDate(startDate)}</strong> হতে <strong>{formatDate(endDate)}</strong></span>
-                    <span>শাখা: <strong>{branchId !== 'all' ? branches.find((b) => String(b.id) === branchId)?.name : 'সকল শাখা'}</strong></span>
-                    <span>প্রিন্ট তারিখ: <strong>{formatDate(today)}</strong></span>
+            {/* EMBEDDED PRINT STYLE INJECTION FOR PURE A4 WORD DOCUMENT FORMAT */}
+            <style>{`
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 12mm 10mm 15mm 10mm;
+                    }
+                    body {
+                        background: #ffffff !important;
+                        color: #000000 !important;
+                        font-size: 9pt !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    /* Force hide web UI elements in print */
+                    nav, aside, header, footer, .sidebar, [data-sidebar], [data-mobile-nav], .pb-safe, [class*="bottom-0"], button, input, select, .print\\:hidden, .no-print {
+                        display: none !important;
+                    }
+                    .print-document-container {
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                    }
+                    table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        page-break-inside: auto;
+                    }
+                    tr {
+                        page-break-inside: avoid !important;
+                        page-break-after: auto;
+                    }
+                    thead {
+                        display: table-header-group !important;
+                    }
+                    tfoot {
+                        display: table-footer-group !important;
+                    }
+                    th, td {
+                        border: 1px solid #222222 !important;
+                        padding: 4px 6px !important;
+                        font-size: 8.5pt !important;
+                        color: #000000 !important;
+                    }
+                    th {
+                        background-color: #f0f0f0 !important;
+                        font-weight: bold !important;
+                    }
+                }
+            `}</style>
+
+            {/* OFFICIAL A4 LETTERHEAD HEADER (VISIBLE IN PRINT ONLY) */}
+            <div className="hidden print:block text-black font-sans mb-4 border-b-2 border-black pb-3">
+                <div className="text-center space-y-0.5">
+                    <h1 className="text-lg font-black tracking-wider uppercase">
+                        M Care Health Services Management System
+                    </h1>
+                    <p className="text-xs font-semibold text-gray-800">
+                        Department of Primary Healthcare & Field Operations
+                    </p>
+                    <p className="text-sm font-bold text-black uppercase mt-1">
+                        {currentTabTitle}
+                    </p>
+                </div>
+
+                {/* Formal Reference & Meta Information Table */}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[9pt] border border-black p-2 bg-gray-50/50">
+                    <div>
+                        <div><strong>Report Period:</strong> {formatDate(startDate)} to {formatDate(endDate)}</div>
+                        <div><strong>Target Branch:</strong> {selectedBranchName}</div>
+                    </div>
+                    <div className="text-right">
+                        <div><strong>Designated Officer:</strong> {selectedOfficerName}</div>
+                        <div><strong>Generated On:</strong> {formatDate(today)} by {user.name}</div>
+                    </div>
                 </div>
             </div>
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-12 print:p-0">
+            <div className="print-document-container mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-12 print:p-0">
                 {/* SCREEN ONLY HEADER */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-2xs print:hidden">
                     <div className="flex items-center gap-3">
@@ -335,19 +458,33 @@ export default function ReportsIndex({
                         <div>
                             <div className="flex items-center gap-2">
                                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-                                    প্রতিবেদন ও পরিসংখ্যান কেন্দ্র (Reports & Analytics)
+                                    Reports & Operational Analytics
                                 </h1>
                                 <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 text-[10px] font-bold">
-                                    A4 প্রিন্ট ও এক্সেল প্রস্তুত
+                                    A4 Print & Excel Ready
                                 </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                দৈনিক ফিল্ড কার্যক্রম, খানা পরিদর্শন, ফি আদায় ও রোগী রেজিস্টার প্রতিবেদন
+                                Filter by Branch and Officer to view, export, and print verified field data
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                        {isPrivileged && (
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl text-xs font-semibold h-9 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                            >
+                                <Link href="/admin/users">
+                                    <Users className="size-3.5" />
+                                    <span>User Management</span>
+                                </Link>
+                            </Button>
+                        )}
+
                         <Button
                             type="button"
                             variant="outline"
@@ -356,7 +493,7 @@ export default function ReportsIndex({
                             className="flex-1 sm:flex-initial rounded-xl text-xs font-semibold h-9 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
                         >
                             <FileSpreadsheet className="size-4 mr-1.5 text-emerald-600" />
-                            এক্সেল এক্সপোর্ট (.csv)
+                            Export Excel (.csv)
                         </Button>
 
                         <Button
@@ -366,12 +503,12 @@ export default function ReportsIndex({
                             className="flex-1 sm:flex-initial rounded-xl text-xs font-bold h-9 bg-primary text-primary-foreground shadow-xs cursor-pointer"
                         >
                             <Printer className="size-4 mr-1.5" />
-                            A4 প্রিন্ট / PDF
+                            Print A4 / PDF
                         </Button>
                     </div>
                 </div>
 
-                {/* REPORT SUB-TABS (PARENT REPORTS NAVIGATION) */}
+                {/* REPORT SUB-TABS (NAVIGATION) */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 bg-card p-1.5 rounded-2xl border border-border/80 shadow-2xs print:hidden">
                     {REPORT_TABS.map((tab) => {
                         const Icon = tab.icon;
@@ -382,7 +519,7 @@ export default function ReportsIndex({
                                 type="button"
                                 onClick={() => {
                                     setActiveTab(tab.key);
-                                    applyFilter(tab.key, startDate, endDate, branchId);
+                                    applyFilter(tab.key, startDate, endDate, branchId, userId);
                                 }}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                                     isActive
@@ -397,110 +534,164 @@ export default function ReportsIndex({
                     })}
                 </div>
 
-                {/* DATE TO DATE FILTER BAR */}
+                {/* ADVANCED MULTI-LEVEL FILTER BAR (DATE, BRANCH, OFFICER) */}
                 <div className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs print:hidden space-y-3">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="flex flex-col gap-3">
                         {/* Quick Date Presets */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-bold text-muted-foreground mr-1 flex items-center gap-1">
-                                <Calendar className="size-3.5" /> দ্রুত সময়কাল:
-                            </span>
-                            {[
-                                { key: 'today', label: 'আজকে' },
-                                { key: 'yesterday', label: 'গতকাল' },
-                                { key: 'this_week', label: 'চলতি সপ্তাহ' },
-                                { key: 'this_month', label: 'চলতি মাস' },
-                            ].map((preset) => (
-                                <button
-                                    key={preset.key}
-                                    type="button"
-                                    onClick={() => handleQuickDate(preset.key as any)}
-                                    className="px-2.5 py-1 rounded-lg border border-input bg-background text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Date to Date Picker & Branch */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center text-xs">
-                                <div className="flex items-center gap-1">
-                                    <span className="font-semibold text-muted-foreground shrink-0">হতে:</span>
-                                    <Input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="h-8 text-xs rounded-xl bg-background flex-1 sm:w-32"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <span className="font-semibold text-muted-foreground shrink-0">পর্যন্ত:</span>
-                                    <Input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="h-8 text-xs rounded-xl bg-background flex-1 sm:w-32"
-                                    />
-                                </div>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[11px] font-bold text-muted-foreground mr-1 flex items-center gap-1">
+                                    <Calendar className="size-3.5" /> Quick Presets:
+                                </span>
+                                {[
+                                    { key: 'today', label: 'Today' },
+                                    { key: 'yesterday', label: 'Yesterday' },
+                                    { key: 'this_week', label: 'This Week' },
+                                    { key: 'this_month', label: 'This Month' },
+                                ].map((preset) => (
+                                    <button
+                                        key={preset.key}
+                                        type="button"
+                                        onClick={() => handleQuickDate(preset.key as any)}
+                                        className="px-2.5 py-1 rounded-lg border border-input bg-background text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                {branches.length > 1 ? (
-                                    <select
-                                        value={branchId}
-                                        onChange={(e) => {
-                                            setBranchId(e.target.value);
-                                            applyFilter(activeTab, startDate, endDate, e.target.value);
-                                        }}
-                                        className="h-8 flex-1 sm:flex-initial rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
-                                    >
-                                        <option value="all">সকল শাখা</option>
-                                        {branches.map((b) => (
-                                            <option key={b.id} value={b.id}>
-                                                {b.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : null}
+                            {/* Active Filter Indicator */}
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                                    <Building2 className="size-3" /> {selectedBranchName}
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                                    <User className="size-3" /> {selectedOfficerName}
+                                </span>
+                            </div>
+                        </div>
 
+                        {/* Date, Branch & User Selector Controls */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 items-center">
+                            {/* Start Date */}
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="font-semibold text-muted-foreground shrink-0">From:</span>
+                                <Input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="h-9 text-xs rounded-xl bg-background w-full"
+                                />
+                            </div>
+
+                            {/* End Date */}
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="font-semibold text-muted-foreground shrink-0">To:</span>
+                                <Input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="h-9 text-xs rounded-xl bg-background w-full"
+                                />
+                            </div>
+
+                            {/* Branch Selector */}
+                            <div>
+                                <select
+                                    value={branchId}
+                                    onChange={(e) => {
+                                        const newB = e.target.value;
+                                        setBranchId(newB);
+                                        applyFilter(activeTab, startDate, endDate, newB, 'all');
+                                    }}
+                                    className="h-9 w-full rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
+                                >
+                                    <option value="all">All Branches</option>
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Officer Selector */}
+                            <div>
+                                <select
+                                    value={userId}
+                                    onChange={(e) => {
+                                        const newU = e.target.value;
+                                        setUserId(newU);
+                                        applyFilter(activeTab, startDate, endDate, branchId, newU);
+                                    }}
+                                    disabled={!isPrivileged && officers.length <= 1}
+                                    className="h-9 w-full rounded-xl border border-input bg-background px-2.5 text-xs font-medium disabled:opacity-60"
+                                >
+                                    <option value="all">All Officers</option>
+                                    {filteredOfficersForDropdown.map((off) => (
+                                        <option key={off.id} value={off.id}>
+                                            {off.name} {off.employee_code ? `(${off.employee_code})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Apply Button */}
+                            <div className="flex items-center gap-2">
                                 <Button
                                     type="button"
                                     size="sm"
-                                    onClick={() => applyFilter(activeTab, startDate, endDate, branchId)}
-                                    className="h-8 px-4 flex-1 sm:flex-initial rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white cursor-pointer"
+                                    onClick={() => applyFilter(activeTab, startDate, endDate, branchId, userId)}
+                                    className="h-9 flex-1 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white cursor-pointer gap-1.5"
                                 >
-                                    <Filter className="size-3.5 mr-1" />
-                                    ফিল্টার
+                                    <Filter className="size-3.5" />
+                                    Apply Filter
                                 </Button>
+
+                                {(branchId !== 'all' || userId !== 'all') && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setBranchId('all');
+                                            setUserId('all');
+                                            applyFilter(activeTab, startDate, endDate, 'all', 'all');
+                                        }}
+                                        className="h-9 px-2 text-xs"
+                                        title="Reset filters"
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 4 SUMMARY STAT CARDS */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 print:grid-cols-4">
+                {/* 4 SUMMARY STAT CARDS (SCREEN ONLY) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 print:hidden">
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            ফিল্ড সেশন / কার্যক্রম
+                            Field Sessions
                         </span>
                         <p className="text-lg sm:text-xl font-bold text-foreground mt-0.5">
-                            {summary.total_activities} টি
+                            {summary.total_activities}
                         </p>
                     </div>
 
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            খানা পরিদর্শন সম্পন্ন
+                            Households Visited
                         </span>
                         <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">
-                            {summary.total_households_visited} টি খানা
+                            {summary.total_households_visited}
                         </p>
                     </div>
 
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            মোট ফি আদায় (টাকা)
+                            Total Fees Collected
                         </span>
                         <p className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
                             ৳{summary.total_fee_amount.toLocaleString()}
@@ -509,36 +700,36 @@ export default function ReportsIndex({
 
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                            ডায়াবেটিস পরীক্ষা
+                            Diabetes Tests
                         </span>
                         <p className="text-lg sm:text-xl font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                            {summary.total_diabetes_tests} জন
+                            {summary.total_diabetes_tests}
                         </p>
                     </div>
                 </div>
 
                 {/* REPORT TABLES BASED ON ACTIVE TAB */}
-                <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden print:border-black print:rounded-none">
+                <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden print:border-none print:shadow-none print:rounded-none">
                     {/* 1. ACTIVITIES SUMMARY REPORT TABLE */}
-                    {activeTab === 'activities' ? (
+                    {activeTab === 'activities' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs print:text-[10px]">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
                                 <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                     <tr>
                                         <th className="px-3 py-2.5">#</th>
-                                        <th className="px-3 py-2.5">তারিখ</th>
-                                        <th className="px-3 py-2.5">শাখার নাম</th>
-                                        <th className="px-3 py-2.5">কার্যক্রমের ধরণ</th>
-                                        <th className="px-3 py-2.5">সমিতি / স্থান</th>
-                                        <th className="px-3 py-2.5 text-right">উপস্থিতি / সেবাগ্রহীতা</th>
-                                        <th className="px-3 py-2.5">দায়িত্বপ্রাপ্ত কর্মকর্তা</th>
+                                        <th className="px-3 py-2.5">Date</th>
+                                        <th className="px-3 py-2.5">Branch</th>
+                                        <th className="px-3 py-2.5">Activity Type</th>
+                                        <th className="px-3 py-2.5">Samity / Location</th>
+                                        <th className="px-3 py-2.5 text-right">Beneficiaries</th>
+                                        <th className="px-3 py-2.5">Assigned Officer</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border print:divide-gray-300">
+                                <tbody className="divide-y divide-border print:divide-black">
                                     {activities.length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                                                নির্বাচিত সময়কালের মধ্যে কোনো কার্যক্রমের রেকর্ড পাওয়া যায়নি।
+                                                No activity records found for the selected criteria.
                                             </td>
                                         </tr>
                                     ) : (
@@ -554,10 +745,15 @@ export default function ReportsIndex({
                                                         {act.task_subtype?.name || act.task_type?.name || '—'}
                                                     </td>
                                                     <td className="px-3 py-2 text-foreground">{(data.samity_name as string) || act.samity?.name || data.village || '—'}</td>
-                                                    <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400">
-                                                        {attendees} জন
+                                                    <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 print:text-black">
+                                                        {attendees}
                                                     </td>
-                                                    <td className="px-3 py-2 text-foreground">{act.user?.name || '—'}</td>
+                                                    <td className="px-3 py-2 text-foreground">
+                                                        <span className="font-semibold">{act.user?.name || '—'}</span>
+                                                        {act.user?.employee_code && (
+                                                            <span className="ml-1 text-[10px] text-muted-foreground font-mono">({act.user.employee_code})</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             );
                                         })
@@ -565,74 +761,69 @@ export default function ReportsIndex({
                                 </tbody>
                             </table>
                         </div>
-                    ) : null}
+                    )}
 
                     {/* 2. HOUSEHOLD VISITS DETAILED REPORT TABLE */}
-                    {activeTab === 'households' ? (
+                    {activeTab === 'households' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs print:text-[10px]">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
                                 <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                     <tr>
                                         <th className="px-2.5 py-2.5">#</th>
-                                        <th className="px-2.5 py-2.5">তারিখ</th>
-                                        <th className="px-2.5 py-2.5">শাখা ও সমিতি</th>
-                                        <th className="px-2.5 py-2.5">গ্রাম</th>
-                                        <th className="px-2.5 py-2.5">খানা প্রধানের নাম</th>
-                                        <th className="px-2.5 py-2.5 text-center">সদস্য</th>
-                                        <th className="px-2.5 py-2.5">মাতৃ স্বাস্থ্য</th>
-                                        <th className="px-2.5 py-2.5">শিশু পুষ্টি</th>
-                                        <th className="px-2.5 py-2.5">প্রতিবন্ধী</th>
-                                        <th className="px-2.5 py-2.5">দীর্ঘমেয়াদী রোগ</th>
-                                        <th className="px-2.5 py-2.5">কর্মকর্তা</th>
+                                        <th className="px-2.5 py-2.5">Date</th>
+                                        <th className="px-2.5 py-2.5">Branch & Samity</th>
+                                        <th className="px-2.5 py-2.5">Village</th>
+                                        <th className="px-2.5 py-2.5">Head of Household</th>
+                                        <th className="px-2.5 py-2.5 text-center">Members</th>
+                                        <th className="px-2.5 py-2.5">Maternal Care</th>
+                                        <th className="px-2.5 py-2.5">Nutrition</th>
+                                        <th className="px-2.5 py-2.5">Disability</th>
+                                        <th className="px-2.5 py-2.5">Chronic Illness</th>
+                                        <th className="px-2.5 py-2.5">Officer</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border print:divide-gray-300">
+                                <tbody className="divide-y divide-border print:divide-black">
                                     {householdRecords.length === 0 ? (
                                         <tr>
                                             <td colSpan={11} className="p-8 text-center text-muted-foreground">
-                                                নির্বাচিত সময়কালের মধ্যে কোনো খানা পরিদর্শনের রেকর্ড পাওয়া যায়নি।
+                                                No household visit records found for the selected criteria.
                                             </td>
                                         </tr>
                                     ) : (
                                         householdRecords.map((h, idx) => {
                                             const activeDiseases = Object.entries(h.elderly_diseases || {})
                                                 .filter(([_, s]) => s.affected)
-                                                .map(([name]) => name)
-                                                .join(', ');
+                                                .map(([name]) => name);
 
                                             return (
                                                 <tr key={idx} className="hover:bg-muted/15 transition-colors">
                                                     <td className="px-2.5 py-2 font-bold text-muted-foreground">{idx + 1}</td>
-                                                    <td className="px-2.5 py-2 whitespace-nowrap">{formatDate(h.date)}</td>
+                                                    <td className="px-2.5 py-2 font-medium text-foreground whitespace-nowrap">{formatDate(h.date)}</td>
                                                     <td className="px-2.5 py-2">
-                                                        <p className="font-semibold text-foreground">{h.samity_name}</p>
-                                                        <p className="text-[10px] text-muted-foreground">{h.branch_name}</p>
+                                                        <div className="font-bold text-foreground">{h.branch_name}</div>
+                                                        <div className="text-[10px] text-muted-foreground">{h.samity_name}</div>
                                                     </td>
-                                                    <td className="px-2.5 py-2">{h.village}</td>
-                                                    <td className="px-2.5 py-2 font-bold text-foreground">
-                                                        {h.household_head}
-                                                        {h.phone && h.phone !== '—' ? (
-                                                            <span className="block text-[10px] text-muted-foreground font-normal">{h.phone}</span>
-                                                        ) : null}
-                                                    </td>
-                                                    <td className="px-2.5 py-2 text-center font-bold">{h.member_count}</td>
+                                                    <td className="px-2.5 py-2 text-foreground">{h.village}</td>
                                                     <td className="px-2.5 py-2">
-                                                        {h.has_pregnant ? <Badge variant="outline" className="text-[9px] bg-purple-500/10 text-purple-700">গর্ভবতী ({h.pregnant_months || '—'} মাস)</Badge> : null}
-                                                        {h.has_postnatal ? <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-700 ml-1">প্রসূতি ({h.delivery_place || '—'})</Badge> : null}
-                                                        {!h.has_pregnant && !h.has_postnatal ? '—' : null}
+                                                        <div className="font-bold text-foreground">{h.household_head}</div>
+                                                        {h.phone !== '—' && (
+                                                            <div className="text-[10px] text-muted-foreground font-mono">{h.phone}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2.5 py-2 text-center font-bold text-foreground">{h.member_count}</td>
+                                                    <td className="px-2.5 py-2">
+                                                        {h.has_pregnant ? 'Pregnant' : h.has_postnatal ? 'Postnatal' : '—'}
                                                     </td>
                                                     <td className="px-2.5 py-2">
-                                                        {h.child_nutrition_issue ? (
-                                                            <span className="text-rose-600 font-semibold text-[10px]">অপুষ্টি চিহ্নিত</span>
-                                                        ) : 'স্বাভাবিক'}
+                                                        {h.child_nutrition_issue ? 'Issue Flagged' : 'Normal'}
                                                     </td>
                                                     <td className="px-2.5 py-2">
-                                                        {h.has_disability ? <Badge variant="outline" className="text-[9px] bg-indigo-500/10 text-indigo-700">প্রতিবন্ধী ({h.disability_gender})</Badge> : '—'}
+                                                        {h.has_disability ? `Yes (${h.disability_gender})` : '—'}
                                                     </td>
-                                                    <td className="px-2.5 py-2 max-w-[120px] truncate text-[10px]">
-                                                        {activeDiseases || '—'}
+                                                    <td className="px-2.5 py-2">
+                                                        {activeDiseases.length > 0 ? activeDiseases.join(', ') : '—'}
                                                     </td>
-                                                    <td className="px-2.5 py-2 text-[10px]">{h.officer_name}</td>
+                                                    <td className="px-2.5 py-2 font-medium text-foreground">{h.officer_name}</td>
                                                 </tr>
                                             );
                                         })
@@ -640,203 +831,263 @@ export default function ReportsIndex({
                                 </tbody>
                             </table>
                         </div>
-                    ) : null}
+                    )}
 
-                    {/* 3. FEE COLLECTIONS & DIABETES REGISTER REPORT TABLE */}
-                    {activeTab === 'fee_collections' ? (
+                    {/* 3. FEE COLLECTIONS & DIABETES REGISTER TABLE */}
+                    {activeTab === 'fee_collections' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs print:text-[10px]">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
                                 <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                     <tr>
                                         <th className="px-3 py-2.5">#</th>
-                                        <th className="px-3 py-2.5">তারিখ</th>
-                                        <th className="px-3 py-2.5">উপকারভোগীর নাম</th>
-                                        <th className="px-3 py-2.5">ধরন</th>
-                                        <th className="px-3 py-2.5">বয়স ও মোবাইল</th>
-                                        <th className="px-3 py-2.5">সমিতি / গ্রাম</th>
-                                        <th className="px-3 py-2.5">ফি আদায়ের ধরণ</th>
-                                        <th className="px-3 py-2.5">ডায়াবেটিস মাত্রা</th>
-                                        <th className="px-3 py-2.5 text-right">আদায় (টাকা)</th>
-                                        <th className="px-3 py-2.5">মন্তব্য</th>
+                                        <th className="px-3 py-2.5">Date</th>
+                                        <th className="px-3 py-2.5">Branch</th>
+                                        <th className="px-3 py-2.5">Beneficiary Name</th>
+                                        <th className="px-3 py-2.5">Type & Age</th>
+                                        <th className="px-3 py-2.5">Location</th>
+                                        <th className="px-3 py-2.5">Fee Category</th>
+                                        <th className="px-3 py-2.5">Diabetes Reading</th>
+                                        <th className="px-3 py-2.5 text-right">Amount (BDT)</th>
+                                        <th className="px-3 py-2.5">Officer</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border print:divide-gray-300">
+                                <tbody className="divide-y divide-border print:divide-black">
                                     {feeCollections.length === 0 ? (
                                         <tr>
                                             <td colSpan={10} className="p-8 text-center text-muted-foreground">
-                                                নির্বাচিত সময়কালের মধ্যে কোনো ফি আদায়ের রেকর্ড পাওয়া যায়নি।
+                                                No fee collection records found for the selected criteria.
                                             </td>
                                         </tr>
                                     ) : (
-                                        feeCollections.map((item, idx) => (
-                                            <tr key={item.id} className="hover:bg-muted/15 transition-colors">
+                                        feeCollections.map((f, idx) => (
+                                            <tr key={f.id} className="hover:bg-muted/15 transition-colors">
                                                 <td className="px-3 py-2 font-bold text-muted-foreground">{idx + 1}</td>
-                                                <td className="px-3 py-2 whitespace-nowrap">{formatDate(item.collection_date)}</td>
-                                                <td className="px-3 py-2 font-bold text-foreground">{item.beneficiary_name}</td>
+                                                <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{formatDate(f.collection_date)}</td>
+                                                <td className="px-3 py-2 text-foreground">{f.branch?.name || '—'}</td>
+                                                <td className="px-3 py-2 font-bold text-foreground">
+                                                    {f.beneficiary_name}
+                                                    {f.phone && (
+                                                        <div className="text-[10px] text-muted-foreground font-mono">{f.phone}</div>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2 text-foreground">
+                                                    <div>{f.beneficiary_type}</div>
+                                                    {f.age && <div className="text-[10px] text-muted-foreground">{f.age} yrs</div>}
+                                                </td>
+                                                <td className="px-3 py-2 text-foreground">{f.location_info || '—'}</td>
+                                                <td className="px-3 py-2 font-semibold text-foreground">{f.collection_type}</td>
                                                 <td className="px-3 py-2">
-                                                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                                                        {item.beneficiary_type}
-                                                    </Badge>
+                                                    {f.diabetes_reading ? `${f.diabetes_reading} mmol/L` : '—'}
                                                 </td>
-                                                <td className="px-3 py-2">
-                                                    {item.age ? `${item.age} ব.` : '—'} {item.phone ? `(${item.phone})` : ''}
+                                                <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 print:text-black">
+                                                    ৳{Number(f.amount).toFixed(2)}
                                                 </td>
-                                                <td className="px-3 py-2">{item.location_info || '—'}</td>
-                                                <td className="px-3 py-2 font-medium">{item.collection_type}</td>
-                                                <td className="px-3 py-2">
-                                                    {item.diabetes_reading ? (
-                                                        <span className="font-bold text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded text-[10px] border border-rose-500/20">
-                                                            {item.diabetes_reading}
-                                                        </span>
-                                                    ) : '—'}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400">
-                                                    ৳{Number(item.amount).toLocaleString()}
-                                                </td>
-                                                <td className="px-3 py-2 text-[10px] text-muted-foreground">{item.notes || '—'}</td>
+                                                <td className="px-3 py-2 text-foreground font-medium">{f.user?.name || '—'}</td>
                                             </tr>
                                         ))
                                     )}
                                 </tbody>
-                                {feeCollections.length > 0 ? (
-                                    <tfoot className="border-t-2 border-border bg-muted/30 font-bold print:bg-gray-100">
+                                {feeCollections.length > 0 && (
+                                    <tfoot className="border-t-2 border-black bg-muted/60 font-bold print:bg-gray-100 text-foreground">
                                         <tr>
-                                            <td colSpan={8} className="px-3 py-2.5 text-right uppercase tracking-wider">
-                                                সর্বমোট আদায়কৃত ফি:
+                                            <td colSpan={8} className="px-3 py-2.5 text-right font-bold text-sm print:text-[9pt]">
+                                                Grand Total Fees Collected:
                                             </td>
-                                            <td className="px-3 py-2.5 text-right font-black text-sm text-emerald-600">
-                                                ৳{summary.total_fee_amount.toLocaleString()}
+                                            <td className="px-3 py-2.5 text-right font-black text-sm print:text-[9pt] text-emerald-600 dark:text-emerald-400 print:text-black">
+                                                ৳{summary.total_fee_amount.toFixed(2)}
                                             </td>
                                             <td></td>
                                         </tr>
                                     </tfoot>
-                                ) : null}
+                                )}
                             </table>
                         </div>
-                    ) : null}
+                    )}
 
-                    {/* 4. PATIENTS CLINICAL REGISTER REPORT TABLE */}
-                    {activeTab === 'patients' ? (
+                    {/* 4. CLINIC PATIENTS REGISTER TABLE */}
+                    {activeTab === 'patients' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs print:text-[10px]">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
                                 <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                     <tr>
                                         <th className="px-3 py-2.5">#</th>
-                                        <th className="px-3 py-2.5">তারিখ</th>
-                                        <th className="px-3 py-2.5">শাখা</th>
-                                        <th className="px-3 py-2.5">রোগীর নাম</th>
-                                        <th className="px-3 py-2.5">বয়স ও লিঙ্গ</th>
-                                        <th className="px-3 py-2.5">স্বাস্থ্য কার্ড</th>
-                                        <th className="px-3 py-2.5">রোগের বিবরণ / সমস্যা</th>
-                                        <th className="px-3 py-2.5">প্রদত্ত পরামর্শ ও চিকিৎসা</th>
-                                        <th className="px-3 py-2.5">কর্মকর্তা</th>
+                                        <th className="px-3 py-2.5">Date</th>
+                                        <th className="px-3 py-2.5">Branch</th>
+                                        <th className="px-3 py-2.5">Clinic Type</th>
+                                        <th className="px-3 py-2.5">Patient Name</th>
+                                        <th className="px-3 py-2.5 text-center">Age & Gender</th>
+                                        <th className="px-3 py-2.5">Health Card</th>
+                                        <th className="px-3 py-2.5">Diagnosis / Illness</th>
+                                        <th className="px-3 py-2.5">Advice & Treatment</th>
+                                        <th className="px-3 py-2.5">Officer</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border print:divide-gray-300">
+                                <tbody className="divide-y divide-border print:divide-black">
                                     {patientRecords.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className="p-8 text-center text-muted-foreground">
-                                                নির্বাচিত সময়কালের মধ্যে কোনো ক্লিনিক্যাল রোগীর রেকর্ড পাওয়া যায়নি।
+                                            <td colSpan={10} className="p-8 text-center text-muted-foreground">
+                                                No clinical consultation records found for the selected criteria.
                                             </td>
                                         </tr>
                                     ) : (
                                         patientRecords.map((p, idx) => (
                                             <tr key={idx} className="hover:bg-muted/15 transition-colors">
                                                 <td className="px-3 py-2 font-bold text-muted-foreground">{idx + 1}</td>
-                                                <td className="px-3 py-2 whitespace-nowrap">{formatDate(p.date)}</td>
-                                                <td className="px-3 py-2">{p.branch_name}</td>
-                                                <td className="px-3 py-2 font-bold text-foreground">{p.patient_name}</td>
-                                                <td className="px-3 py-2">
-                                                    {p.patient_age} বছর • {p.patient_gender}
+                                                <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{formatDate(p.date)}</td>
+                                                <td className="px-3 py-2 text-foreground">{p.branch_name}</td>
+                                                <td className="px-3 py-2 font-bold text-foreground">{p.clinic_type}</td>
+                                                <td className="px-3 py-2 font-bold text-foreground">
+                                                    {p.patient_name}
+                                                    <div className="text-[10px] text-muted-foreground font-normal">{p.patient_type}</div>
                                                 </td>
+                                                <td className="px-3 py-2 text-center text-foreground">{p.patient_age} yrs ({p.patient_gender})</td>
                                                 <td className="px-3 py-2">
-                                                    <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${p.has_card ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>
-                                                        {p.has_card ? '✓ আছে' : '✗ নেই'}
-                                                    </Badge>
+                                                    {p.has_card ? 'Yes' : 'No'}
                                                 </td>
                                                 <td className="px-3 py-2 font-medium text-foreground">{p.disease}</td>
-                                                <td className="px-3 py-2 max-w-xs whitespace-pre-wrap text-[11px]">{p.advice}</td>
-                                                <td className="px-3 py-2 text-[10px]">{p.officer_name}</td>
+                                                <td className="px-3 py-2 text-foreground">{p.advice}</td>
+                                                <td className="px-3 py-2 font-medium text-foreground">{p.officer_name}</td>
                                             </tr>
                                         ))
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    ) : null}
+                    )}
 
-                    {/* 5. BRANCH PERFORMANCE MATRIX REPORT TABLE */}
-                    {activeTab === 'branches' ? (
+                    {/* 5. BRANCH PERFORMANCE MATRIX TABLE */}
+                    {activeTab === 'branches' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs print:text-[10px]">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
                                 <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                     <tr>
                                         <th className="px-3 py-2.5">#</th>
-                                        <th className="px-3 py-2.5">শাখার নাম ও কোড</th>
-                                        <th className="px-3 py-2.5 text-right">মোট সেশন</th>
-                                        <th className="px-3 py-2.5 text-right">মোট সেবাগ্রহীতা</th>
-                                        <th className="px-3 py-2.5 text-right">পরিদর্শনকৃত খানা</th>
-                                        <th className="px-3 py-2.5 text-right">ডায়াবেটিস পরীক্ষা</th>
-                                        <th className="px-3 py-2.5 text-right">মোট ফি আদায় (টাকা)</th>
+                                        <th className="px-3 py-2.5">Branch Name</th>
+                                        <th className="px-3 py-2.5">Code</th>
+                                        <th className="px-3 py-2.5 text-center">Activities Count</th>
+                                        <th className="px-3 py-2.5 text-center">Beneficiaries</th>
+                                        <th className="px-3 py-2.5 text-center">Households Visited</th>
+                                        <th className="px-3 py-2.5 text-center">Diabetes Tests</th>
+                                        <th className="px-3 py-2.5 text-right">Total Fees (BDT)</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border print:divide-gray-300">
+                                <tbody className="divide-y divide-border print:divide-black">
                                     {branchMatrix.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                                                কোনো শাখার রেকর্ড পাওয়া যায়নি।
+                                            <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                                                No branch matrix data available.
                                             </td>
                                         </tr>
                                     ) : (
                                         branchMatrix.map((b, idx) => (
                                             <tr key={b.branch_id} className="hover:bg-muted/15 transition-colors">
-                                                <td className="px-3 py-2.5 font-bold text-muted-foreground">{idx + 1}</td>
-                                                <td className="px-3 py-2.5">
-                                                    <p className="font-bold text-foreground">{b.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground">কোড: {b.code}</p>
+                                                <td className="px-3 py-2 font-bold text-muted-foreground">{idx + 1}</td>
+                                                <td className="px-3 py-2 font-bold text-foreground">{b.name}</td>
+                                                <td className="px-3 py-2 text-muted-foreground font-mono">{b.code}</td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">{b.activities_count}</td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">{b.beneficiaries_count}</td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">{b.households_visited}</td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">{b.diabetes_tests_count}</td>
+                                                <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 print:text-black">
+                                                    ৳{Number(b.total_fee_collected).toFixed(2)}
                                                 </td>
-                                                <td className="px-3 py-2.5 text-right font-semibold">{b.activities_count}</td>
-                                                <td className="px-3 py-2.5 text-right font-black text-emerald-600">{b.beneficiaries_count.toLocaleString()} জন</td>
-                                                <td className="px-3 py-2.5 text-right font-semibold">{b.households_visited} টি</td>
-                                                <td className="px-3 py-2.5 text-right font-semibold text-rose-600">{b.diabetes_tests_count} জন</td>
-                                                <td className="px-3 py-2.5 text-right font-black text-emerald-600">৳{b.total_fee_collected.toLocaleString()}</td>
                                             </tr>
                                         ))
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    ) : null}
+                    )}
+
+                    {/* 6. OFFICER PERFORMANCE MATRIX TABLE (USER-WISE BREAKDOWN) */}
+                    {activeTab === 'officers' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                    <tr>
+                                        <th className="px-3 py-2.5">#</th>
+                                        <th className="px-3 py-2.5">Officer Name</th>
+                                        <th className="px-3 py-2.5">Branch</th>
+                                        <th className="px-3 py-2.5 text-center">Activities Count</th>
+                                        <th className="px-3 py-2.5 text-center">Beneficiaries</th>
+                                        <th className="px-3 py-2.5 text-center">Households</th>
+                                        <th className="px-3 py-2.5 text-right">Total Fees (BDT)</th>
+                                        <th className="px-3 py-2.5 text-right print:hidden">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border print:divide-black">
+                                    {officerMatrix.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                                                No officer performance data available for this range.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        officerMatrix.map((o, idx) => (
+                                            <tr key={o.user_id} className="hover:bg-muted/15 transition-colors">
+                                                <td className="px-3 py-2 font-bold text-muted-foreground">{idx + 1}</td>
+                                                <td className="px-3 py-2">
+                                                    <div className="font-bold text-foreground">{o.name}</div>
+                                                    {o.employee_code !== '—' && (
+                                                        <div className="text-[10px] font-mono text-muted-foreground">
+                                                            {o.employee_code}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2 text-foreground">{o.branch_name}</td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">
+                                                    {o.activities_count}
+                                                </td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">
+                                                    {o.beneficiaries_count}
+                                                </td>
+                                                <td className="px-3 py-2 text-center font-bold text-foreground">
+                                                    {o.households_visited}
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 print:text-black">
+                                                    ৳{Number(o.total_fee_collected).toFixed(2)}
+                                                </td>
+                                                <td className="px-3 py-2 text-right print:hidden">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setUserId(String(o.user_id));
+                                                            setActiveTab('activities');
+                                                            applyFilter('activities', startDate, endDate, branchId, String(o.user_id));
+                                                        }}
+                                                        className="h-7 px-2 text-[11px] font-semibold"
+                                                    >
+                                                        Filter Logs
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
-                {/* PRINT-ONLY OFFICIAL SIGNATURES BLOCK (AT BOTTOM OF A4) */}
-                <div className="hidden print:grid grid-cols-4 gap-6 pt-16 mt-8 text-center text-xs text-black border-t border-gray-400">
-                    <div className="space-y-1">
-                        <div className="border-t border-black w-3/4 mx-auto pt-1">
-                            <p className="font-bold">প্রতিবেদন প্রস্তুতকারী</p>
-                            <p className="text-[9px] text-gray-600">স্বাক্ষর ও তারিখ</p>
-                        </div>
+                {/* OFFICIAL WORD DOCUMENT / INSTITUTIONAL 4-COLUMN SIGNATURE FOOTER */}
+                <div className="hidden print:grid grid-cols-4 gap-6 pt-16 text-center text-[9pt] border-t-2 border-black mt-12 text-black">
+                    <div>
+                        <div className="border-t border-black pt-1 font-bold">Field Paramedic / Worker</div>
+                        <div className="text-[8pt] text-gray-600">Signature & Date</div>
                     </div>
-
-                    <div className="space-y-1">
-                        <div className="border-t border-black w-3/4 mx-auto pt-1">
-                            <p className="font-bold">স্বাস্থ্য কর্মকর্তা</p>
-                            <p className="text-[9px] text-gray-600">স্বাক্ষর ও তারিখ</p>
-                        </div>
+                    <div>
+                        <div className="border-t border-black pt-1 font-bold">Field Supervisor</div>
+                        <div className="text-[8pt] text-gray-600">Verification & Date</div>
                     </div>
-
-                    <div className="space-y-1">
-                        <div className="border-t border-black w-3/4 mx-auto pt-1">
-                            <p className="font-bold">শাখা ব্যবস্থাপক</p>
-                            <p className="text-[9px] text-gray-600">স্বাক্ষর ও তারিখ</p>
-                        </div>
+                    <div>
+                        <div className="border-t border-black pt-1 font-bold">Branch Manager</div>
+                        <div className="text-[8pt] text-gray-600">Seal & Signature</div>
                     </div>
-
-                    <div className="space-y-1">
-                        <div className="border-t border-black w-3/4 mx-auto pt-1">
-                            <p className="font-bold">অনুমোদনকারী কর্মকর্তা</p>
-                            <p className="text-[9px] text-gray-600">স্বাক্ষর ও তারিখ</p>
-                        </div>
+                    <div>
+                        <div className="border-t border-black pt-1 font-bold">Director (Health Operations)</div>
+                        <div className="text-[8pt] text-gray-600">Approval & Seal</div>
                     </div>
                 </div>
             </div>

@@ -172,3 +172,20 @@
     -webkit-touch-callout: none;
 }
 
+@media print {
+    .print\:hidden,
+    .no-print,
+    [data-mobile-nav],
+    .pb-safe,
+    nav,
+    aside,
+    footer,
+    [role="navigation"],
+    [data-sidebar],
+    .sidebar,
+    [class*="bottom-0"],
+    header:not(.print-header) {
+        display: none !important;
+    }
+}
+

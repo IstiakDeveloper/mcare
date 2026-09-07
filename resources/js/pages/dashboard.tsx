@@ -42,6 +42,7 @@ import {
     PatientEntry,
     SatellitePatientRepeater,
 } from '@/components/satellite-patient-repeater';
+import { AdminDashboardView } from '@/components/admin-dashboard-view';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,7 @@ export default function Dashboard({
     branches = [],
     selectedBranchId = null,
     formSchemas = {},
+    adminOverview = null,
 }: DashboardProps) {
     const { auth, flash } = usePage<{
         auth: Auth;
@@ -358,69 +360,77 @@ export default function Dashboard({
                     </div>
                 ) : null}
 
-                {/* Compact Executive Header */}
-                <div className="rounded-2xl border border-border/80 bg-card p-3.5 sm:p-4 md:p-5 shadow-2xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <span className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm sm:text-base shrink-0">
-                                {user?.name ? user.name.charAt(0).toUpperCase() : 'H'}
-                            </span>
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                    <h1 className="text-sm sm:text-base md:text-lg font-bold text-foreground truncate">
-                                        {user?.name || 'Health Officer'}
-                                    </h1>
-                                    <Badge variant="secondary" className="text-[10px] h-5 py-0 rounded-full shrink-0">
-                                        {user?.role_name || user?.designation || 'স্বাস্থ্য বিভাগ'}
-                                    </Badge>
-                                    {user?.branch?.name ? (
-                                        <Badge variant="outline" className="text-[10px] h-5 py-0 rounded-full flex items-center gap-1 shrink-0">
-                                            <Building2 className="size-3" />
-                                            {user.branch.name}
-                                        </Badge>
+                {user?.role === 'admin' && adminOverview ? (
+                    <AdminDashboardView
+                        adminOverview={adminOverview}
+                        today={today}
+                        branches={branches}
+                    />
+                ) : (
+                    <>
+                        {/* Compact Executive Header */}
+                        <div className="rounded-2xl border border-border/80 bg-card p-3.5 sm:p-4 md:p-5 shadow-2xs">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm sm:text-base shrink-0">
+                                        {user?.name ? user.name.charAt(0).toUpperCase() : 'H'}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                            <h1 className="text-sm sm:text-base md:text-lg font-bold text-foreground truncate">
+                                                {user?.name || 'Health Officer'}
+                                            </h1>
+                                            <Badge variant="secondary" className="text-[10px] h-5 py-0 rounded-full shrink-0">
+                                                {user?.role_name || user?.designation || 'Health Department'}
+                                            </Badge>
+                                            {user?.branch?.name ? (
+                                                <Badge variant="outline" className="text-[10px] h-5 py-0 rounded-full flex items-center gap-1 shrink-0">
+                                                    <Building2 className="size-3" />
+                                                    {user.branch.name}
+                                                </Badge>
+                                            ) : null}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {new Date(today + 'T00:00:00').toLocaleDateString('bn-BD', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Top Action Buttons (Analytics / Fee Collection) */}
+                                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
+                                        className="rounded-xl text-xs font-semibold h-8 shadow-2xs border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+                                    >
+                                        <Link href="/fee-collections">
+                                            <Receipt className="size-3.5 mr-1 text-rose-600 dark:text-rose-400" />
+                                            Fee Collection
+                                        </Link>
+                                    </Button>
+
+                                    {user?.can_view_analytics || user?.role === 'admin' || user?.role === 'branch-manager' ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            asChild
+                                            className="rounded-xl text-xs font-semibold h-8 shadow-2xs border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10"
+                                        >
+                                            <Link href="/reports">
+                                                <TrendingUp className="size-3.5 mr-1" />
+                                                Reports & Analytics
+                                            </Link>
+                                        </Button>
                                     ) : null}
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    {new Date(today + 'T00:00:00').toLocaleDateString('bn-BD', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                    })}
-                                </p>
                             </div>
                         </div>
-
-                        {/* Top Action Buttons (Analytics / Fee Collection / HRM Sync) */}
-                        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                asChild
-                                className="rounded-xl text-xs font-semibold h-8 shadow-2xs border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
-                            >
-                                <Link href="/fee-collections">
-                                    <Receipt className="size-3.5 mr-1 text-rose-600 dark:text-rose-400" />
-                                    ফি কালেকশন
-                                </Link>
-                            </Button>
-
-                            {user?.can_view_analytics || user?.role === 'admin' || user?.role === 'branch-manager' ? (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    asChild
-                                    className="rounded-xl text-xs font-semibold h-8 shadow-2xs border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10"
-                                >
-                                    <Link href="/reports">
-                                        <TrendingUp className="size-3.5 mr-1" />
-                                        Reports & Analytics
-                                    </Link>
-                                </Button>
-                            ) : null}
-                        </div>
-                    </div>
-                </div>
 
                 {/* Active Household Session Alert Banner */}
                 {activeHouseholdSession ? (
@@ -874,7 +884,9 @@ export default function Dashboard({
                         </Card>
                     </div>
                 </section>
-            </div>
+            </>
+        )}
+    </div>
 
             {/* SINGLE SCREEN QUICK TASK ENTRY MODAL */}
             <Dialog open={quickModalOpen} onOpenChange={setQuickModalOpen}>

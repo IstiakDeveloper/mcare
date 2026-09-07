@@ -93,24 +93,17 @@ export function AppSidebarHeader({
                     </Link>
                 </Button>
 
-                {/* Light / Dark Mode Toggle */}
+                {/* Light / Dark Mode Toggle (Hydration Safe) */}
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={toggleTheme}
                     className="size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                    title={
-                        resolvedAppearance === 'dark'
-                            ? 'Switch to Light Mode'
-                            : 'Switch to Dark Mode'
-                    }
+                    title="Toggle theme"
                     aria-label="Toggle theme"
                 >
-                    {resolvedAppearance === 'dark' ? (
-                        <Sun className="size-4 text-amber-400 transition-transform rotate-0 scale-100" />
-                    ) : (
-                        <Moon className="size-4 text-slate-700 transition-transform rotate-0 scale-100" />
-                    )}
+                    <Sun className="hidden size-4 text-amber-400 transition-transform rotate-0 scale-100 dark:block" />
+                    <Moon className="block size-4 text-slate-700 transition-transform rotate-0 scale-100 dark:hidden" />
                 </Button>
             </div>
         </header>

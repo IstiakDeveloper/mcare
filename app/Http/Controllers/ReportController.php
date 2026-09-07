@@ -43,46 +43,91 @@ class ReportController extends Controller
             $branches = $user->branch ? collect([$user->branch]) : new Collection;
         }
 
-        // Base user scoping for worker
-        $isRestrictedWorker = $user->isWorker();
+        // 3. Officer / User Resolution (Admin & Manager can filter by user/officer)
+        $selectedUserId = null;
+        if ($user->isAdmin() || $user->isBranchManager()) {
+            $selectedUserId = $request->filled('user_id') && $request->input('user_id') !== 'all'
+                ? $request->integer('user_id')
+                : null;
+        } else {
+            $selectedUserId = $user->id;
+        }
 
-        // 3. Query Activities
+        // Available Officers list for dropdown
+        if ($user->isAdmin()) {
+            $officersQuery = User::query()
+                ->with('branch:id,name')
+                ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
+                ->orderBy('name');
+            $officers = $officersQuery->get()->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'employee_code' => $u->employee_code,
+                'designation' => $u->designation,
+                'branch_id' => $u->branch_id,
+                'branch_name' => $u->branch?->name,
+            ]);
+        } elseif ($user->isBranchManager()) {
+            $officers = User::query()
+                ->where('branch_id', $user->branch_id)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (User $u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'employee_code' => $u->employee_code,
+                    'designation' => $u->designation,
+                    'branch_id' => $u->branch_id,
+                    'branch_name' => $user->branch?->name,
+                ]);
+        } else {
+            $officers = collect([[
+                'id' => $user->id,
+                'name' => $user->name,
+                'employee_code' => $user->employee_code,
+                'designation' => $user->designation,
+                'branch_id' => $user->branch_id,
+                'branch_name' => $user->branch?->name,
+            ]]);
+        }
+
+        // 4. Query Activities
         $activityQuery = DailyActivity::query()
             ->with(['taskType', 'taskSubtype', 'branch', 'user', 'samity'])
             ->whereDate('activity_date', '>=', $startDate)
             ->whereDate('activity_date', '<=', $endDate)
             ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
-            ->when($isRestrictedWorker, fn ($q) => $q->where('user_id', $user->id))
+            ->when($selectedUserId, fn ($q) => $q->where('user_id', $selectedUserId))
             ->latest('activity_date')
             ->latest('id');
 
         $activities = $activityQuery->get();
 
-        // 4. Query Health Camps
+        // 5. Query Health Camps
         $campQuery = HealthCamp::query()
             ->with(['branch', 'user'])
             ->whereDate('activity_date', '>=', $startDate)
             ->whereDate('activity_date', '<=', $endDate)
             ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
-            ->when($isRestrictedWorker, fn ($q) => $q->where('entered_by', $user->id))
+            ->when($selectedUserId, fn ($q) => $q->where('entered_by', $selectedUserId))
             ->latest('activity_date');
 
         $healthCamps = $campQuery->get();
 
-        // 5. Query Fee Collections
+        // 6. Query Fee Collections
         $feeQuery = FeeCollection::query()
             ->with(['branch', 'user'])
             ->whereDate('collection_date', '>=', $startDate)
             ->whereDate('collection_date', '<=', $endDate)
             ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
-            ->when($isRestrictedWorker, fn ($q) => $q->where('user_id', $user->id))
+            ->when($selectedUserId, fn ($q) => $q->where('user_id', $selectedUserId))
             ->latest('collection_date')
             ->latest('id');
 
         $feeCollections = $feeQuery->get();
 
-        // 6. Extract Flattened Records for Detailed Reports
-        // 6.1 Household Visits Extraction
+        // 7. Extract Flattened Records for Detailed Reports
+        // 7.1 Household Visits Extraction
         $householdRecords = [];
         foreach ($activities as $act) {
             $data = is_array($act->form_data) ? $act->form_data : [];
@@ -119,7 +164,7 @@ class ReportController extends Controller
             }
         }
 
-        // 6.2 Clinical Patients Extraction (Static & Satellite Clinics)
+        // 7.2 Clinical Patients Extraction (Static & Satellite Clinics)
         $patientRecords = [];
         foreach ($activities as $act) {
             $data = is_array($act->form_data) ? $act->form_data : [];
@@ -144,7 +189,7 @@ class ReportController extends Controller
             }
         }
 
-        // 6.3 Branch Performance Aggregation
+        // 7.3 Branch Performance Aggregation
         $branchMatrix = [];
         foreach ($activities as $act) {
             $bId = $act->branch_id ?: 0;
@@ -188,6 +233,53 @@ class ReportController extends Controller
             }
         }
 
+        // 7.4 Officer Performance Aggregation (User-wise breakdown)
+        $officerMatrix = [];
+        foreach ($activities as $act) {
+            $uId = $act->user_id ?: 0;
+            $uName = $act->user?->name ?: 'অনির্ধারিত কর্মী';
+            $uCode = $act->user?->employee_code ?: '—';
+            $bName = $act->branch?->name ?: '—';
+
+            if (! isset($officerMatrix[$uId])) {
+                $officerMatrix[$uId] = [
+                    'user_id' => $uId,
+                    'name' => $uName,
+                    'employee_code' => $uCode,
+                    'branch_name' => $bName,
+                    'activities_count' => 0,
+                    'beneficiaries_count' => 0,
+                    'households_visited' => 0,
+                    'total_fee_collected' => 0.00,
+                ];
+            }
+            $officerMatrix[$uId]['activities_count']++;
+            $data = is_array($act->form_data) ? $act->form_data : [];
+            $officerMatrix[$uId]['beneficiaries_count'] += (int) ($data['attendees_count'] ?? $data['patients_served'] ?? $data['members_visited'] ?? (isset($data['patients']) ? count($data['patients']) : 0));
+            $officerMatrix[$uId]['households_visited'] += (int) ($data['household_count'] ?? (isset($data['households']) ? count($data['households']) : 0));
+        }
+
+        foreach ($feeCollections as $fee) {
+            $uId = $fee->user_id ?: 0;
+            $uName = $fee->user?->name ?: 'অনির্ধারিত কর্মী';
+            $uCode = $fee->user?->employee_code ?: '—';
+            $bName = $fee->branch?->name ?: '—';
+
+            if (! isset($officerMatrix[$uId])) {
+                $officerMatrix[$uId] = [
+                    'user_id' => $uId,
+                    'name' => $uName,
+                    'employee_code' => $uCode,
+                    'branch_name' => $bName,
+                    'activities_count' => 0,
+                    'beneficiaries_count' => 0,
+                    'households_visited' => 0,
+                    'total_fee_collected' => 0.00,
+                ];
+            }
+            $officerMatrix[$uId]['total_fee_collected'] += (float) $fee->amount;
+        }
+
         // Summary Aggregates
         $summary = [
             'total_activities' => $activities->count(),
@@ -205,6 +297,7 @@ class ReportController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'branch_id' => $selectedBranchId ? (string) $selectedBranchId : 'all',
+                'user_id' => $selectedUserId ? (string) $selectedUserId : 'all',
                 'report_type' => $reportType,
             ],
             'summary' => $summary,
@@ -214,12 +307,16 @@ class ReportController extends Controller
             'householdRecords' => $householdRecords,
             'patientRecords' => $patientRecords,
             'branchMatrix' => array_values($branchMatrix),
+            'officerMatrix' => array_values($officerMatrix),
             'branches' => $branches,
+            'officers' => $officers,
             'today' => $today,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'role' => $user->role,
+                'is_admin' => $user->isAdmin(),
+                'is_branch_manager' => $user->isBranchManager(),
                 'branch_name' => $user->branch?->name ?: 'প্রধান শাখা',
             ],
         ];
