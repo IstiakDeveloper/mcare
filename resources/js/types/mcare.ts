@@ -198,4 +198,23 @@ export type FeeCollection = {
     branch?: { id: number; name: string; code?: string } | null;
 };
 
+export type HealthCardDisburse = {
+    id: number;
+    user_id: number;
+    branch_id?: number | null;
+    member_name: string;
+    member_code: string;
+    health_card_number: string;
+    entry_date: string;
+    expire_date: string;
+    phone?: string | null;
+    village_or_samity?: string | null;
+    notes?: string | null;
+    days_remaining?: number;
+    validity_status?: 'active' | 'expiring_soon' | 'expired';
+    created_at?: string;
+    user?: { id: number; name: string; employee_code?: string | null } | null;
+    branch?: { id: number; name: string; branch_code?: string | null } | null;
+};
+
 

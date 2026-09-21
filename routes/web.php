@@ -7,6 +7,7 @@ use App\Http\Controllers\DailyActivityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeeCollectionController;
 use App\Http\Controllers\HealthCampController;
+use App\Http\Controllers\HealthCardDisburseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskFormController;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +60,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('fee-collections', [FeeCollectionController::class, 'index'])->name('fee-collections.index');
     Route::post('fee-collections', [FeeCollectionController::class, 'store'])->name('fee-collections.store');
     Route::delete('fee-collections/{feeCollection}', [FeeCollectionController::class, 'destroy'])->name('fee-collections.destroy');
+
+    Route::get('health-cards', [HealthCardDisburseController::class, 'index'])->name('health-cards.index');
+    Route::post('health-cards', [HealthCardDisburseController::class, 'store'])->name('health-cards.store');
+    Route::put('health-cards/{healthCard}', [HealthCardDisburseController::class, 'update'])->name('health-cards.update');
+    Route::delete('health-cards/{healthCard}', [HealthCardDisburseController::class, 'destroy'])->name('health-cards.destroy');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');

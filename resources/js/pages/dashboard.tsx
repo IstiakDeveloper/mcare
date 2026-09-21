@@ -13,6 +13,7 @@ import {
     ClipboardList,
     Clock,
     Coins,
+    CreditCard,
     Eye,
     FileText,
     Flame,
@@ -401,8 +402,20 @@ export default function Dashboard({
                                     </div>
                                 </div>
 
-                                {/* Top Action Buttons (Analytics / Fee Collection) */}
+                                {/* Top Action Buttons (Analytics / Health Card / Fee Collection) */}
                                 <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
+                                        className="rounded-xl text-xs font-semibold h-8 shadow-2xs border-primary/30 text-primary hover:bg-primary/10"
+                                    >
+                                        <Link href="/health-cards">
+                                            <CreditCard className="size-3.5 mr-1" />
+                                            হেলথ কার্ড বিতরণ
+                                        </Link>
+                                    </Button>
+
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -473,15 +486,28 @@ export default function Dashboard({
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                             দৈনিক ফিল্ড কার্যক্রম ও সেবা এন্ট্রি (Quick Actions)
                         </span>
-                        <Button
-                            onClick={handleSelectHealthCamp}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl text-xs font-semibold h-8 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
-                        >
-                            <Tent className="size-3.5 mr-1" />
-                            + হেলথ ক্যাম্প (Health Camp)
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl text-xs font-semibold h-8 border-primary/40 text-primary hover:bg-primary/10"
+                            >
+                                <Link href="/health-cards">
+                                    <CreditCard className="size-3.5 mr-1" />
+                                    + হেলথ কার্ড বিতরণ
+                                </Link>
+                            </Button>
+                            <Button
+                                onClick={handleSelectHealthCamp}
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl text-xs font-semibold h-8 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+                            >
+                                <Tent className="size-3.5 mr-1" />
+                                + হেলথ ক্যাম্প (Health Camp)
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">

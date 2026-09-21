@@ -5,6 +5,7 @@ import {
     CheckCircle2,
     ClipboardList,
     Coins,
+    CreditCard,
     FileText,
     HeartPulse,
     Home,
@@ -97,6 +98,11 @@ export function AppSidebar() {
             badgeVariant: 'secondary',
         },
         {
+            title: 'Health Cards (হেলথ কার্ড)',
+            href: '/health-cards',
+            icon: CreditCard,
+        },
+        {
             title: 'Activity Logs (All Staff)',
             href: '/activities',
             icon: ClipboardList,
@@ -175,6 +181,11 @@ export function AppSidebar() {
             title: 'Fee Collections',
             href: '/fee-collections',
             icon: Receipt,
+        },
+        {
+            title: 'Health Cards (হেলথ কার্ড)',
+            href: '/health-cards',
+            icon: CreditCard,
         },
     ];
 

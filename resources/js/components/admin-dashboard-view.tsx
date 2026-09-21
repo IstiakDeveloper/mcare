@@ -8,6 +8,7 @@ import {
     ChevronRight,
     Clock,
     Coins,
+    CreditCard,
     Download,
     Eye,
     FileSpreadsheet,
@@ -142,6 +143,17 @@ export function AdminDashboardView({
                             <Link href="/reports">
                                 <FileText className="size-4" />
                                 <span>Reports & Registers</span>
+                            </Link>
+                        </Button>
+
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="rounded-xl text-xs font-semibold h-9 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shadow-sm"
+                        >
+                            <Link href="/health-cards">
+                                <CreditCard className="size-4" />
+                                <span>হেলথ কার্ড তালিকা</span>
                             </Link>
                         </Button>
                     </div>

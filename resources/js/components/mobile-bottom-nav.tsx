@@ -5,6 +5,7 @@ import {
     Building2,
     ChevronRight,
     ClipboardList,
+    CreditCard,
     FileText,
     HeartPulse,
     Home,
@@ -448,6 +449,28 @@ export function MobileBottomNav() {
                                             </div>
                                         </div>
                                         <ChevronRight className="size-4 text-emerald-600 shrink-0" />
+                                    </Link>
+
+                                    {/* Health Cards Disburse */}
+                                    <Link
+                                        href="/health-cards"
+                                        onClick={() => setQuickMenuOpen(false)}
+                                        className="w-full flex items-center justify-between rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 to-card p-3.5 text-left shadow-2xs transition-all active:scale-[0.99] mt-2"
+                                    >
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                                                <CreditCard className="size-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-bold text-foreground">
+                                                    Health Cards (হেলথ কার্ড বিতরণ)
+                                                </h4>
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    সদস্যদের হেলথ কার্ড বিতরণ ও মেয়াদ পর্যবেক্ষণ
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="size-4 text-primary shrink-0" />
                                     </Link>
                                 </div>
                             </div>
