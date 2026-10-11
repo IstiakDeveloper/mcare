@@ -20,6 +20,7 @@ import {
     Shield,
     ShieldAlert,
     ShieldCheck,
+    Stethoscope,
     Trash2,
     UserCheck,
     UserPlus,
@@ -90,6 +91,7 @@ type Props = {
         total_admins: number;
         total_workers: number;
         total_managers: number;
+        total_hospitals: number;
         total_branches: number;
     };
     filters: {
@@ -98,6 +100,17 @@ type Props = {
         role_id: string;
     };
 };
+
+const ROLE_LABELS: Record<string, string> = {
+    admin: 'অ্যাডমিন',
+    'branch-manager': 'ব্রাঞ্চ ম্যানেজার',
+    worker: 'ফিল্ড কর্মী',
+    hospital: 'হাসপাতাল',
+};
+
+function roleLabel(role: { name: string; slug: string }): string {
+    return ROLE_LABELS[role.slug] || role.name;
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'ড্যাশবোর্ড', href: dashboard() },
@@ -255,6 +268,13 @@ export default function AdminUsersIndex({
                 </span>
             );
         }
+        if (roleSlug === 'hospital') {
+            return (
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-300 border border-sky-500/20">
+                    <Stethoscope className="size-3" /> হাসপাতাল
+                </span>
+            );
+        }
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <UserCheck className="size-3" /> ফিল্ড কর্মী
@@ -293,11 +313,35 @@ export default function AdminUsersIndex({
                             </h1>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            সকল ফিল্ড অফিসার, ব্রাঞ্চ ম্যানেজার ও অ্যাডমিন অ্যাকাউন্ট নিয়ন্ত্রণ, রোল অ্যাসাইন এবং কার্যক্রম পর্যবেক্ষণ করুন।
+                            ফিল্ড কর্মী, ব্রাঞ্চ ম্যানেজার, অ্যাডমিন এবং হাসপাতাল ডেস্কের ইউজার এখান থেকে তৈরি করুন।
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                const hospitalRole = roles.find((role) => role.slug === 'hospital');
+                                resetCreate();
+                                setCreateData({
+                                    name: '',
+                                    username: '',
+                                    email: '',
+                                    phone: '',
+                                    employee_code: '',
+                                    designation: 'Hospital Desk',
+                                    role_id: hospitalRole ? String(hospitalRole.id) : '',
+                                    branch_id: '',
+                                    password: '',
+                                });
+                                setCreateModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl"
+                        >
+                            <Stethoscope className="size-4" />
+                            <span>হাসপাতাল ইউজার</span>
+                        </Button>
                         <Button
                             onClick={() => {
                                 resetCreate();
@@ -312,7 +356,7 @@ export default function AdminUsersIndex({
                 </div>
 
                 {/* Metric Summary Cards */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
                     <Card className="border-border/60 bg-card/60 backdrop-blur-sm">
                         <CardContent className="flex items-center justify-between p-4 sm:p-5">
                             <div>
@@ -357,6 +401,22 @@ export default function AdminUsersIndex({
                             </div>
                             <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400">
                                 <Building2 className="size-6" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/60 bg-card/60 backdrop-blur-sm">
+                        <CardContent className="flex items-center justify-between p-4 sm:p-5">
+                            <div>
+                                <p className="text-xs font-semibold text-sky-700 uppercase tracking-wider dark:text-sky-300">
+                                    হাসপাতাল
+                                </p>
+                                <p className="mt-1 text-2xl font-extrabold text-sky-700 sm:text-3xl dark:text-sky-300">
+                                    {summary.total_hospitals}
+                                </p>
+                            </div>
+                            <div className="rounded-xl bg-sky-500/10 p-3 text-sky-700 dark:text-sky-300">
+                                <Stethoscope className="size-6" />
                             </div>
                         </CardContent>
                     </Card>
@@ -438,7 +498,7 @@ export default function AdminUsersIndex({
                                     <option value="all">সকল রোল (All Roles)</option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
-                                            {r.name}
+                                            {roleLabel(r)}
                                         </option>
                                     ))}
                                 </select>
@@ -823,11 +883,16 @@ export default function AdminUsersIndex({
                                         <option value="">রোল নির্বাচন করুন</option>
                                         {roles.map((r) => (
                                             <option key={r.id} value={r.id}>
-                                                {r.name}
+                                                {roleLabel(r)}
                                             </option>
                                         ))}
                                     </select>
                                     <InputError message={createErrors.role_id} />
+                                    {roles.find((role) => String(role.id) === createData.role_id)?.slug === 'hospital' ? (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            এই ইউজার শুধু রেফারেল দেখবে, এসেছে বা আসেনি রেকর্ড করবে এবং Referral Report দেখবে।
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 {/* Branch */}
@@ -978,11 +1043,16 @@ export default function AdminUsersIndex({
                                         <option value="">রোল নির্বাচন করুন</option>
                                         {roles.map((r) => (
                                             <option key={r.id} value={r.id}>
-                                                {r.name}
+                                                {roleLabel(r)}
                                             </option>
                                         ))}
                                     </select>
                                     <InputError message={editErrors.role_id} />
+                                    {roles.find((role) => String(role.id) === editData.role_id)?.slug === 'hospital' ? (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            এই ইউজার শুধু রেফারেল দেখবে, এসেছে বা আসেনি রেকর্ড করবে এবং Referral Report দেখবে।
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 {/* Branch */}

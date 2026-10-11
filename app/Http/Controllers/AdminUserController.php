@@ -80,6 +80,10 @@ class AdminUserController extends Controller
         });
 
         $branches = Branch::query()->orderBy('name')->get(['id', 'name', 'branch_code']);
+        Role::query()->updateOrCreate(
+            ['slug' => 'hospital'],
+            ['name' => 'Hospital'],
+        );
         $roles = Role::query()->orderBy('name')->get(['id', 'name', 'slug']);
 
         $summary = [
@@ -87,6 +91,7 @@ class AdminUserController extends Controller
             'total_admins' => User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->count(),
             'total_workers' => User::whereHas('role', fn ($q) => $q->where('slug', 'worker'))->orWhereNull('role_id')->count(),
             'total_managers' => User::whereHas('role', fn ($q) => $q->where('slug', 'branch-manager'))->count(),
+            'total_hospitals' => User::whereHas('role', fn ($q) => $q->where('slug', 'hospital'))->count(),
             'total_branches' => Branch::count(),
         ];
 

@@ -11,17 +11,24 @@ use App\Models\TaskType;
 use App\Models\User;
 use App\Support\FormSchema;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): Response|RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
         $user->loadMissing(['role', 'branch']);
+
+        if ($user->isHospital()) {
+            return redirect()->route('referrals.index');
+        }
 
         $today = now()->toDateString();
 
@@ -122,7 +129,9 @@ class DashboardController extends Controller
             $submittedOfficers = [];
             foreach ($submittedUserIds as $uId) {
                 $officer = $allWorkers->firstWhere('id', $uId) ?? User::with('branch')->find($uId);
-                if (! $officer) continue;
+                if (! $officer) {
+                    continue;
+                }
 
                 $userActs = $allTodayActivities->where('user_id', $uId);
                 $userFees = $allTodayFees->where('user_id', $uId);
@@ -244,11 +253,11 @@ class DashboardController extends Controller
         $departmentId = (int) config('mcare.hrm.health_department_id', 12);
 
         try {
-            if (! \Illuminate\Support\Facades\Schema::connection($connection)->hasTable('employees')) {
+            if (! Schema::connection($connection)->hasTable('employees')) {
                 return $this->getFallbackHrmStatus();
             }
 
-            $db = \Illuminate\Support\Facades\DB::connection($connection);
+            $db = DB::connection($connection);
 
             $healthEmployees = $db->table('employees')
                 ->leftJoin('designations', 'designations.id', '=', 'employees.designation_id')
@@ -274,17 +283,17 @@ class DashboardController extends Controller
 
             $empIds = $healthEmployees->pluck('id')->all();
 
-            $attendances = \Illuminate\Support\Facades\Schema::connection($connection)->hasTable('attendances')
+            $attendances = Schema::connection($connection)->hasTable('attendances')
                 ? $db->table('attendances')->whereIn('employee_id', $empIds)->where('date', $today)->get()->keyBy('employee_id')
                 : collect();
 
-            $movements = \Illuminate\Support\Facades\Schema::connection($connection)->hasTable('movements')
+            $movements = Schema::connection($connection)->hasTable('movements')
                 ? $db->table('movements')->whereIn('employee_id', $empIds)->where(function ($q) use ($today) {
                     $q->whereDate('from_datetime', $today)->orWhereDate('created_at', $today);
                 })->get()->groupBy('employee_id')
                 : collect();
 
-            $leaves = \Illuminate\Support\Facades\Schema::connection($connection)->hasTable('leave_applications')
+            $leaves = Schema::connection($connection)->hasTable('leave_applications')
                 ? $db->table('leave_applications')->whereIn('employee_id', $empIds)->where('start_date', '<=', $today)->where('end_date', '>=', $today)->get()->groupBy('employee_id')
                 : collect();
 

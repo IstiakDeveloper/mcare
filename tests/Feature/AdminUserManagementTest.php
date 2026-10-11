@@ -67,6 +67,42 @@ test('admin can update a user', function () {
     ]);
 });
 
+test('admin can create a hospital desk user who only handles referrals', function () {
+    $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'System Admin']);
+    $admin = User::factory()->create(['role_id' => $adminRole->id]);
+    $hospitalRole = Role::firstOrCreate(['slug' => 'hospital'], ['name' => 'Hospital']);
+
+    $this->actingAs($admin)->post(route('admin.users.store'), [
+        'name' => 'Hospital Desk',
+        'username' => 'hospital.desk',
+        'email' => 'hospital.desk@mcare.local',
+        'designation' => 'Hospital Desk',
+        'role_id' => $hospitalRole->id,
+        'password' => 'hospital',
+    ])->assertRedirect(route('admin.users.index'));
+
+    $hospital = User::query()->where('username', 'hospital.desk')->first();
+    expect($hospital)->not->toBeNull()
+        ->and($hospital->role_id)->toBe($hospitalRole->id);
+
+    $this->actingAs($hospital)
+        ->get(route('dashboard'))
+        ->assertRedirect(route('referrals.index'));
+
+    $this->actingAs($hospital)
+        ->get(route('referrals.index'))
+        ->assertOk();
+
+    $this->actingAs($hospital)
+        ->get(route('reports.index', ['report_type' => 'activities']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('filters.report_type', 'referral'));
+
+    $this->actingAs($hospital)
+        ->get(route('admin.users.index'))
+        ->assertForbidden();
+});
+
 test('admin can filter reports by branch and user', function () {
     $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'System Admin']);
     $admin = User::factory()->create(['role_id' => $adminRole->id]);

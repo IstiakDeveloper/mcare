@@ -7,6 +7,7 @@ use App\Models\DailyActivity;
 use App\Models\FeeCollection;
 use App\Models\HealthCamp;
 use App\Models\HealthCardDisburse;
+use App\Models\Referral;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,10 +29,13 @@ class ReportController extends Controller
         $startDate = $request->string('start_date')->toString() ?: $today;
         $endDate = $request->string('end_date')->toString() ?: $today;
         $reportType = $request->string('report_type')->toString() ?: 'activities';
+        if ($user->isHospital()) {
+            $reportType = 'referral';
+        }
 
         // 2. Branch Resolution
         $selectedBranchId = null;
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isHospital()) {
             $selectedBranchId = $request->filled('branch_id') && $request->input('branch_id') !== 'all'
                 ? $request->integer('branch_id')
                 : null;
@@ -46,7 +50,7 @@ class ReportController extends Controller
 
         // 3. Officer / User Resolution (Admin & Manager can filter by user/officer)
         $selectedUserId = null;
-        if ($user->isAdmin() || $user->isBranchManager()) {
+        if ($user->isAdmin() || $user->isHospital() || $user->isBranchManager()) {
             $selectedUserId = $request->filled('user_id') && $request->input('user_id') !== 'all'
                 ? $request->integer('user_id')
                 : null;
@@ -55,7 +59,7 @@ class ReportController extends Controller
         }
 
         // Available Officers list for dropdown
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isHospital()) {
             $officersQuery = User::query()
                 ->with('branch:id,name')
                 ->when($selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
@@ -294,7 +298,11 @@ class ReportController extends Controller
             : null;
 
         $illnessReport = $reportType === 'illness'
-            ? $this->buildIllnessReport($activities, $feeCollections, $branches)
+            ? $this->buildIllnessReport($activities, $feeCollections)
+            : null;
+
+        $referralReport = $reportType === 'referral'
+            ? $this->buildReferralReport($user, $request, $startDate, $endDate)
             : null;
 
         // Summary Aggregates
@@ -327,6 +335,7 @@ class ReportController extends Controller
             'officerMatrix' => array_values($officerMatrix),
             'employeeReport' => $employeeReport,
             'illnessReport' => $illnessReport,
+            'referralReport' => $referralReport,
             'branches' => $branches,
             'officers' => $officers,
             'today' => $today,
@@ -348,30 +357,104 @@ class ReportController extends Controller
     }
 
     /**
-     * @param  Collection<int, DailyActivity>  $activities
-     * @param  Collection<int, FeeCollection>  $feeCollections
-     * @param  iterable<int, mixed>  $branches
-     * @return array{summary: array<string, int>, branches: list<array<string, int|string>>, static_diseases: list<array{disease: string, branch_name: string, patients: int}>}
+     * @return array{
+     *     summary: array{total: int, pending: int, arrived: int, not_arrived: int},
+     *     employees: list<array{user_id: int, name: string, employee_code: string, designation: string, branch_name: string, referred_count: int, arrived_count: int, pending_count: int, not_arrived_count: int}>,
+     *     members: list<array{id: int, referral_date: string, member_name: string, member_code: string, phone: string, village_or_samity: string, reason: string, status: string, employee_name: string, branch_name: string}>
+     * }
      */
-    private function buildIllnessReport(Collection $activities, Collection $feeCollections, iterable $branches): array
+    private function buildReferralReport(User $viewer, Request $request, string $startDate, string $endDate): array
     {
-        $rows = [];
+        $query = Referral::query()
+            ->with(['referredBy.branch:id,name', 'branch:id,name'])
+            ->whereDate('referral_date', '>=', $startDate)
+            ->whereDate('referral_date', '<=', $endDate);
 
-        foreach ($branches as $branch) {
-            $id = (int) (is_array($branch) ? ($branch['id'] ?? 0) : $branch->id);
-            $name = (string) (is_array($branch) ? ($branch['name'] ?? '—') : ($branch->name ?? '—'));
-            $rows[$id] = $this->blankIllnessBranch($id, $name);
+        $requestedBranchId = $request->filled('branch_id') && $request->input('branch_id') !== 'all'
+            ? $request->integer('branch_id')
+            : null;
+        $requestedUserId = $request->filled('user_id') && $request->input('user_id') !== 'all'
+            ? $request->integer('user_id')
+            : null;
+
+        if ($viewer->isAdmin() || $viewer->isHospital()) {
+            $query->when($requestedBranchId, fn ($inner) => $inner->where('branch_id', $requestedBranchId))
+                ->when($requestedUserId, fn ($inner) => $inner->where('referred_by', $requestedUserId));
+        } elseif ($viewer->isBranchManager()) {
+            $query->where('branch_id', $viewer->branch_id)
+                ->when($requestedUserId, fn ($inner) => $inner->where('referred_by', $requestedUserId));
+        } else {
+            $query->where('referred_by', $viewer->id);
         }
 
+        $referrals = $query->orderByDesc('referral_date')->orderByDesc('id')->get();
+        $employees = [];
+
+        foreach ($referrals as $referral) {
+            $employeeId = (int) $referral->referred_by;
+            if (! isset($employees[$employeeId])) {
+                $employees[$employeeId] = [
+                    'user_id' => $employeeId,
+                    'name' => $referral->referredBy?->name ?: '—',
+                    'employee_code' => $referral->referredBy?->employee_code ?: '—',
+                    'designation' => $referral->referredBy?->designation ?: '—',
+                    'branch_name' => $referral->branch?->name ?: $referral->referredBy?->branch?->name ?: '—',
+                    'referred_count' => 0,
+                    'arrived_count' => 0,
+                    'pending_count' => 0,
+                    'not_arrived_count' => 0,
+                ];
+            }
+
+            $employees[$employeeId]['referred_count']++;
+            if ($referral->status === Referral::STATUS_ARRIVED) {
+                $employees[$employeeId]['arrived_count']++;
+            } elseif ($referral->status === Referral::STATUS_NOT_ARRIVED) {
+                $employees[$employeeId]['not_arrived_count']++;
+            } else {
+                $employees[$employeeId]['pending_count']++;
+            }
+        }
+
+        $employeeRows = array_values($employees);
+        usort($employeeRows, fn (array $a, array $b): int => $b['referred_count'] <=> $a['referred_count']);
+
+        $members = $referrals->map(fn (Referral $referral) => [
+            'id' => $referral->id,
+            'referral_date' => $this->reportDate($referral->referral_date),
+            'member_name' => $referral->member_name,
+            'member_code' => $referral->member_code ?: '—',
+            'phone' => $referral->phone ?: '—',
+            'village_or_samity' => $referral->village_or_samity ?: '—',
+            'reason' => $referral->reason,
+            'status' => $referral->status,
+            'employee_name' => $referral->referredBy?->name ?: '—',
+            'branch_name' => $referral->branch?->name ?: '—',
+        ])->values()->all();
+
+        return [
+            'summary' => [
+                'total' => $referrals->count(),
+                'pending' => $referrals->where('status', Referral::STATUS_PENDING)->count(),
+                'arrived' => $referrals->where('status', Referral::STATUS_ARRIVED)->count(),
+                'not_arrived' => $referrals->where('status', Referral::STATUS_NOT_ARRIVED)->count(),
+            ],
+            'employees' => $employeeRows,
+            'members' => $members,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, DailyActivity>  $activities
+     * @param  Collection<int, FeeCollection>  $feeCollections
+     * @return array{summary: array<string, int>, static_diseases: list<array{disease: string, patients: int}>}
+     */
+    private function buildIllnessReport(Collection $activities, Collection $feeCollections): array
+    {
+        $summary = $this->blankIllnessTotals();
         $static = [];
 
         foreach ($activities as $act) {
-            $branchId = (int) ($act->branch_id ?: 0);
-            $branchName = $act->branch?->name ?: 'অনির্ধারিত শাখা';
-            if (! isset($rows[$branchId])) {
-                $rows[$branchId] = $this->blankIllnessBranch($branchId, $branchName);
-            }
-
             $data = is_array($act->form_data) ? $act->form_data : [];
             $households = $data['households'] ?? [];
             if (is_array($households)) {
@@ -379,7 +462,7 @@ class ReportController extends Controller
                     if (! is_array($household)) {
                         continue;
                     }
-                    $this->tallyHousehold($rows[$branchId], $household);
+                    $this->tallyHousehold($summary, $household);
                 }
             }
 
@@ -393,15 +476,15 @@ class ReportController extends Controller
                     if ($disease === '') {
                         continue;
                     }
-                    $key = $branchId.'|'.mb_strtolower($disease);
+                    $key = mb_strtolower($disease);
                     if (! isset($static[$key])) {
                         $static[$key] = [
                             'disease' => $disease,
-                            'branch_name' => $branchName,
                             'patients' => 0,
                         ];
                     }
                     $static[$key]['patients']++;
+                    $summary['static_patients']++;
                 }
             }
         }
@@ -410,80 +493,27 @@ class ReportController extends Controller
             if ($fee->collection_type !== 'ডায়াবেটিস পরীক্ষা') {
                 continue;
             }
-            $branchId = (int) ($fee->branch_id ?: 0);
-            $branchName = $fee->branch?->name ?: 'অনির্ধারিত শাখা';
-            if (! isset($rows[$branchId])) {
-                $rows[$branchId] = $this->blankIllnessBranch($branchId, $branchName);
-            }
-            $rows[$branchId]['diabetes_tests']++;
+            $summary['diabetes_tests']++;
             if ($fee->beneficiary_type === 'অ-সদস্য') {
-                $rows[$branchId]['diabetes_tests_non_member']++;
+                $summary['diabetes_tests_non_member']++;
             } else {
-                $rows[$branchId]['diabetes_tests_member']++;
+                $summary['diabetes_tests_member']++;
             }
         }
-
-        $branchRows = array_values($rows);
-        usort($branchRows, fn (array $a, array $b): int => strnatcasecmp((string) $a['branch_name'], (string) $b['branch_name']));
 
         $staticRows = array_values($static);
         usort($staticRows, function (array $a, array $b): int {
             return [$b['patients'], $a['disease']] <=> [$a['patients'], $b['disease']];
         });
 
-        $summary = [
-            'diabetes_affected' => 0,
-            'diabetes_medication' => 0,
-            'hypertension_affected' => 0,
-            'hypertension_medication' => 0,
-            'tuberculosis_affected' => 0,
-            'tuberculosis_medication' => 0,
-            'kidney_disease_affected' => 0,
-            'kidney_disease_medication' => 0,
-            'eye_disease_affected' => 0,
-            'eye_disease_medication' => 0,
-            'asthma_affected' => 0,
-            'asthma_medication' => 0,
-            'malnutrition_affected' => 0,
-            'malnutrition_medication' => 0,
-            'other_chronic_affected' => 0,
-            'other_chronic_medication' => 0,
-            'pregnant' => 0,
-            'anc' => 0,
-            'tt' => 0,
-            'delivered' => 0,
-            'pnc' => 0,
-            'stunting' => 0,
-            'wasting' => 0,
-            'underweight' => 0,
-            'disabled' => 0,
-            'general_illness' => 0,
-            'general_treated' => 0,
-            'diabetes_tests' => 0,
-            'static_patients' => 0,
-        ];
-
-        foreach ($branchRows as $row) {
-            foreach ($summary as $key => $value) {
-                if ($key === 'static_patients') {
-                    continue;
-                }
-                $summary[$key] += (int) ($row[$key] ?? 0);
-            }
-        }
-        foreach ($staticRows as $row) {
-            $summary['static_patients'] += $row['patients'];
-        }
-
         return [
             'summary' => $summary,
-            'branches' => $branchRows,
             'static_diseases' => $staticRows,
         ];
     }
 
     /**
-     * @param  array<string, int|string>  $row
+     * @param  array<string, int>  $row
      * @param  array<string, mixed>  $household
      */
     private function tallyHousehold(array &$row, array $household): void
@@ -540,13 +570,11 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int>
      */
-    private function blankIllnessBranch(int $id, string $name): array
+    private function blankIllnessTotals(): array
     {
         $row = [
-            'branch_id' => $id,
-            'branch_name' => $name,
             'pregnant' => 0,
             'anc' => 0,
             'tt' => 0,
@@ -561,6 +589,7 @@ class ReportController extends Controller
             'diabetes_tests' => 0,
             'diabetes_tests_member' => 0,
             'diabetes_tests_non_member' => 0,
+            'static_patients' => 0,
         ];
 
         foreach (['diabetes', 'hypertension', 'tuberculosis', 'kidney_disease', 'eye_disease', 'asthma', 'malnutrition', 'other_chronic'] as $key) {

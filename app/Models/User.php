@@ -111,6 +111,11 @@ class User extends Authenticatable implements PasskeyUser
         return $this->role?->slug === 'branch-manager';
     }
 
+    public function isHospital(): bool
+    {
+        return $this->role?->slug === 'hospital';
+    }
+
     public function isWorker(): bool
     {
         return $this->role?->slug === 'worker' || $this->role === null;

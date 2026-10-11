@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeeCollectionController;
 use App\Http\Controllers\HealthCampController;
 use App\Http\Controllers\HealthCardDisburseController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskFormController;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('health-cards', [HealthCardDisburseController::class, 'store'])->name('health-cards.store');
     Route::put('health-cards/{healthCard}', [HealthCardDisburseController::class, 'update'])->name('health-cards.update');
     Route::delete('health-cards/{healthCard}', [HealthCardDisburseController::class, 'destroy'])->name('health-cards.destroy');
+
+    Route::get('referrals', [ReferralController::class, 'index'])->name('referrals.index');
+    Route::post('referrals', [ReferralController::class, 'store'])->name('referrals.store');
+    Route::put('referrals/{referral}', [ReferralController::class, 'update'])->name('referrals.update');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');

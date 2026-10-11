@@ -30,6 +30,7 @@ return [
     'roles' => [
         ['name' => 'Worker', 'slug' => 'worker'],
         ['name' => 'Branch Manager', 'slug' => 'branch-manager'],
+        ['name' => 'Hospital', 'slug' => 'hospital'],
         ['name' => 'Admin', 'slug' => 'admin'],
     ],
 

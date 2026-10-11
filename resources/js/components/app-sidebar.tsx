@@ -12,6 +12,7 @@ import {
     LayoutGrid,
     Receipt,
     RefreshCw,
+    Share2,
     Shield,
     ShieldAlert,
     ShieldCheck,
@@ -79,6 +80,20 @@ export function AppSidebar() {
     };
 
     const isAdmin = Boolean(user?.role === 'admin');
+    const isHospital = Boolean(user?.role === 'hospital');
+
+    const hospitalItems: NavItem[] = [
+        {
+            title: 'Referrals',
+            href: '/referrals',
+            icon: Share2,
+        },
+        {
+            title: 'Referral Report',
+            href: '/reports?report_type=referral',
+            icon: FileText,
+        },
+    ];
 
     // 1. ADMIN EXCLUSIVE NAVIGATION
     const adminMainItems: NavItem[] = [
@@ -101,6 +116,11 @@ export function AppSidebar() {
             title: 'Health Cards (হেলথ কার্ড)',
             href: '/health-cards',
             icon: CreditCard,
+        },
+        {
+            title: 'Referrals',
+            href: '/referrals',
+            icon: Share2,
         },
         {
             title: 'Activity Logs (All Staff)',
@@ -150,6 +170,11 @@ export function AppSidebar() {
                     title: 'Illness & Disease',
                     href: '/reports?report_type=illness',
                     icon: HeartPulse,
+                },
+                {
+                    title: 'Referral Report',
+                    href: '/reports?report_type=referral',
+                    icon: Share2,
                 },
             ],
         },
@@ -228,6 +253,11 @@ export function AppSidebar() {
             href: '/health-cards',
             icon: CreditCard,
         },
+        {
+            title: 'Referrals',
+            href: '/referrals',
+            icon: Share2,
+        },
     ];
 
     const workerReportsItems: NavItem[] = [
@@ -275,6 +305,11 @@ export function AppSidebar() {
                     href: '/reports?report_type=illness',
                     icon: HeartPulse,
                 },
+                {
+                    title: 'Referral Report',
+                    href: '/reports?report_type=referral',
+                    icon: Share2,
+                },
             ],
         },
     ];
@@ -317,6 +352,11 @@ export function AppSidebar() {
                         {/* Admin Sections Only */}
                         <NavMain label="Overview" items={adminMainItems} />
                         <NavMain label="Administration" items={adminManagementItems} />
+                        <NavMain label="System" items={systemNavItems} />
+                    </>
+                ) : isHospital ? (
+                    <>
+                        <NavMain label="Hospital" items={hospitalItems} />
                         <NavMain label="System" items={systemNavItems} />
                     </>
                 ) : (

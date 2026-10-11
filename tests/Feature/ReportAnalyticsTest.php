@@ -226,7 +226,7 @@ test('employee work report counts submissions in the date range for the selected
         ->and($outsideBranch->json('employeeReport.submissions'))->toBe([]);
 });
 
-test('illness report counts household diseases diabetes tests and static clinic diseases by branch', function () {
+test('illness report totals follow the date branch and employee filters', function () {
     $adminRole = Role::query()->firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
     $managerRole = Role::query()->firstOrCreate(['slug' => 'branch-manager'], ['name' => 'Branch Manager']);
 
@@ -325,11 +325,10 @@ test('illness report counts household diseases diabetes tests and static clinic 
         ->and($response->json('illnessReport.summary.general_illness'))->toBe(2)
         ->and($response->json('illnessReport.summary.general_treated'))->toBe(2)
         ->and($response->json('illnessReport.summary.diabetes_tests'))->toBe(1)
-        ->and($response->json('illnessReport.summary.static_patients'))->toBe(2);
-
-    $branchRow = collect($response->json('illnessReport.branches'))->firstWhere('branch_name', 'Illness Branch A');
-    expect($branchRow['diabetes_affected'])->toBe(1)
-        ->and($branchRow['diabetes_tests'])->toBe(1);
+        ->and($response->json('illnessReport.summary.diabetes_tests_member'))->toBe(1)
+        ->and($response->json('illnessReport.summary.static_patients'))->toBe(2)
+        ->and($response->json('illnessReport.static_diseases.0.disease'))->toBe('জ্বর')
+        ->and($response->json('illnessReport.static_diseases.0.patients'))->toBe(2);
 
     $scoped = $this->actingAs($manager)->getJson(route('reports.index', [
         'start_date' => $today,
@@ -340,4 +339,27 @@ test('illness report counts household diseases diabetes tests and static clinic 
     $scoped->assertOk();
     expect($scoped->json('illnessReport.summary.diabetes_affected'))->toBe(1)
         ->and($scoped->json('illnessReport.summary.diabetes_tests'))->toBe(1);
+
+    $byBranch = $this->actingAs($admin)->getJson(route('reports.index', [
+        'start_date' => $today,
+        'end_date' => $today,
+        'report_type' => 'illness',
+        'branch_id' => $branch->id,
+    ]));
+
+    $byBranch->assertOk();
+    expect($byBranch->json('illnessReport.summary.diabetes_affected'))->toBe(1)
+        ->and($byBranch->json('illnessReport.summary.static_patients'))->toBe(2);
+
+    $byEmployee = $this->actingAs($admin)->getJson(route('reports.index', [
+        'start_date' => $today,
+        'end_date' => $today,
+        'report_type' => 'illness',
+        'user_id' => $worker->id,
+    ]));
+
+    $byEmployee->assertOk();
+    expect($byEmployee->json('illnessReport.summary.diabetes_affected'))->toBe(1)
+        ->and($byEmployee->json('illnessReport.summary.pregnant'))->toBe(0)
+        ->and($byEmployee->json('illnessReport.summary.diabetes_tests'))->toBe(0);
 });

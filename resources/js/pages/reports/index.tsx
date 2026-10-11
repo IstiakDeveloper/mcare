@@ -120,9 +120,7 @@ type EmployeeSubmission = {
     description: string;
 };
 
-type IllnessBranch = {
-    branch_id: number;
-    branch_name: string;
+type IllnessSummary = {
     diabetes_affected: number;
     diabetes_medication: number;
     hypertension_affected: number;
@@ -153,53 +151,46 @@ type IllnessBranch = {
     diabetes_tests: number;
     diabetes_tests_member: number;
     diabetes_tests_non_member: number;
+    static_patients: number;
 };
 
 type IllnessReport = {
-    summary: {
-        diabetes_affected: number;
-        diabetes_medication: number;
-        hypertension_affected: number;
-        hypertension_medication: number;
-        tuberculosis_affected: number;
-        tuberculosis_medication: number;
-        kidney_disease_affected: number;
-        kidney_disease_medication: number;
-        eye_disease_affected: number;
-        eye_disease_medication: number;
-        asthma_affected: number;
-        asthma_medication: number;
-        malnutrition_affected: number;
-        malnutrition_medication: number;
-        other_chronic_affected: number;
-        other_chronic_medication: number;
-        pregnant: number;
-        anc: number;
-        tt: number;
-        delivered: number;
-        pnc: number;
-        stunting: number;
-        wasting: number;
-        underweight: number;
-        disabled: number;
-        general_illness: number;
-        general_treated: number;
-        diabetes_tests: number;
-        static_patients: number;
-    };
-    branches: IllnessBranch[];
-    static_diseases: { disease: string; branch_name: string; patients: number }[];
+    summary: IllnessSummary;
+    static_diseases: { disease: string; patients: number }[];
 };
 
-const CHRONIC_COLUMNS: { key: keyof IllnessBranch; med: keyof IllnessBranch; label: string }[] = [
-    { key: 'diabetes_affected', med: 'diabetes_medication', label: 'ডায়াবেটিস' },
-    { key: 'hypertension_affected', med: 'hypertension_medication', label: 'উচ্চ রক্তচাপ' },
-    { key: 'tuberculosis_affected', med: 'tuberculosis_medication', label: 'যক্ষা' },
-    { key: 'kidney_disease_affected', med: 'kidney_disease_medication', label: 'কিডনি' },
-    { key: 'eye_disease_affected', med: 'eye_disease_medication', label: 'চোখ' },
-    { key: 'asthma_affected', med: 'asthma_medication', label: 'হাঁপানি' },
-    { key: 'malnutrition_affected', med: 'malnutrition_medication', label: 'অপুষ্টি' },
-    { key: 'other_chronic_affected', med: 'other_chronic_medication', label: 'অন্যান্য' },
+const ILLNESS_POINTS: { key: keyof IllnessSummary; label: string; unit: string }[] = [
+    { key: 'diabetes_affected', label: 'ডায়াবেটিস', unit: 'খানা' },
+    { key: 'diabetes_medication', label: 'ডায়াবেটিস — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'hypertension_affected', label: 'উচ্চ রক্তচাপ', unit: 'খানা' },
+    { key: 'hypertension_medication', label: 'উচ্চ রক্তচাপ — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'tuberculosis_affected', label: 'যক্ষা', unit: 'খানা' },
+    { key: 'tuberculosis_medication', label: 'যক্ষা — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'kidney_disease_affected', label: 'কিডনি রোগ', unit: 'খানা' },
+    { key: 'kidney_disease_medication', label: 'কিডনি রোগ — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'eye_disease_affected', label: 'চোখের রোগ', unit: 'খানা' },
+    { key: 'eye_disease_medication', label: 'চোখের রোগ — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'asthma_affected', label: 'হাঁপানি', unit: 'খানা' },
+    { key: 'asthma_medication', label: 'হাঁপানি — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'malnutrition_affected', label: 'বয়স্ক অপুষ্টি', unit: 'খানা' },
+    { key: 'malnutrition_medication', label: 'বয়স্ক অপুষ্টি — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'other_chronic_affected', label: 'অন্যান্য দীর্ঘমেয়াদি রোগ', unit: 'খানা' },
+    { key: 'other_chronic_medication', label: 'অন্যান্য দীর্ঘমেয়াদি — নিয়মিত ওষুধ', unit: 'খানা' },
+    { key: 'pregnant', label: 'গর্ভবতী', unit: 'খানা' },
+    { key: 'anc', label: 'ANC', unit: 'খানা' },
+    { key: 'tt', label: 'TT টিকা', unit: 'খানা' },
+    { key: 'delivered', label: 'প্রসব', unit: 'খানা' },
+    { key: 'pnc', label: 'PNC', unit: 'খানা' },
+    { key: 'stunting', label: 'স্টান্টিং', unit: 'খানা' },
+    { key: 'wasting', label: 'ওয়েস্টিং', unit: 'খানা' },
+    { key: 'underweight', label: 'আন্ডারওয়েট', unit: 'খানা' },
+    { key: 'disabled', label: 'প্রতিবন্ধী', unit: 'খানা' },
+    { key: 'general_illness', label: 'সাধারণ অসুস্থ', unit: 'জন' },
+    { key: 'general_treated', label: 'সাধারণ অসুস্থ — চিকিৎসা নিয়েছেন', unit: 'জন' },
+    { key: 'diabetes_tests', label: 'ডায়াবেটিস পরীক্ষা', unit: 'জন' },
+    { key: 'diabetes_tests_member', label: 'ডায়াবেটিস পরীক্ষা — সদস্য', unit: 'জন' },
+    { key: 'diabetes_tests_non_member', label: 'ডায়াবেটিস পরীক্ষা — অ-সদস্য', unit: 'জন' },
+    { key: 'static_patients', label: 'স্ট্যাটিক ক্লিনিক রোগী', unit: 'জন' },
 ];
 
 type EmployeeReport = {
@@ -223,8 +214,45 @@ type EmployeeReport = {
     submissions: EmployeeSubmission[];
 };
 
+type ReferralEmployeeRow = {
+    user_id: number;
+    name: string;
+    employee_code: string;
+    designation: string;
+    branch_name: string;
+    referred_count: number;
+    arrived_count: number;
+    pending_count: number;
+    not_arrived_count: number;
+};
+
+type ReferralMemberRow = {
+    id: number;
+    referral_date: string;
+    member_name: string;
+    member_code: string;
+    phone: string;
+    village_or_samity: string;
+    reason: string;
+    status: string;
+    employee_name: string;
+    branch_name: string;
+};
+
+type ReferralReport = {
+    summary: { total: number; pending: number; arrived: number; not_arrived: number };
+    employees: ReferralEmployeeRow[];
+    members: ReferralMemberRow[];
+};
+
+const REFERRAL_STATUS_LABELS: Record<string, string> = {
+    pending: 'অপেক্ষমাণ',
+    arrived: 'এসেছে',
+    not_arrived: 'আসেনি',
+};
+
 type Props = {
-    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers' | 'employee' | 'illness';
+    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers' | 'employee' | 'illness' | 'referral';
     filters: {
         start_date: string;
         end_date: string;
@@ -250,6 +278,7 @@ type Props = {
     officerMatrix: OfficerMatrixItem[];
     employeeReport?: EmployeeReport | null;
     illnessReport?: IllnessReport | null;
+    referralReport?: ReferralReport | null;
     branches: BranchOption[];
     officers?: OfficerOption[];
     today: string;
@@ -272,6 +301,7 @@ const REPORT_TITLES: Record<string, string> = {
     officers: 'Officer Performance Summary',
     employee: 'Employee Work Report',
     illness: 'Illness & Disease Report',
+    referral: 'Referral Report',
 };
 
 export default function ReportsIndex({
@@ -287,6 +317,7 @@ export default function ReportsIndex({
     officerMatrix = [],
     employeeReport = null,
     illnessReport = null,
+    referralReport = null,
     branches = [],
     officers = [],
     today,
@@ -533,75 +564,62 @@ export default function ReportsIndex({
             }
         } else if (activeTab === 'illness' && illnessReport) {
             filename = `Mcare_Illness_Report_${startDate}_to_${endDate}.csv`;
-            const totals = illnessReport.summary;
             rows.push(['Illness & Disease Report']);
             rows.push(['Period', `${startDate} to ${endDate}`]);
             rows.push(['Branch', selectedBranchName]);
+            rows.push(['Employee', selectedOfficerName]);
+            rows.push([]);
+            rows.push(['Point', 'Unit', 'Total']);
+            ILLNESS_POINTS.forEach((point) => {
+                rows.push([point.label, point.unit, String(illnessReport.summary[point.key])]);
+            });
+            if (illnessReport.static_diseases.length > 0) {
+                rows.push([]);
+                rows.push(['Static clinic disease', 'Patients']);
+                illnessReport.static_diseases.forEach((item) => {
+                    rows.push([item.disease, String(item.patients)]);
+                });
+            }
+        } else if (activeTab === 'referral' && referralReport) {
+            filename = `Mcare_Referral_Report_${startDate}_to_${endDate}.csv`;
+            rows.push(['Referral Report']);
+            rows.push(['Period', `${startDate} to ${endDate}`]);
+            rows.push(['Branch', selectedBranchName]);
+            rows.push(['Employee', selectedOfficerName]);
             rows.push([]);
             rows.push(['Summary']);
-            rows.push(['Diabetes households (affected)', String(totals.diabetes_affected)]);
-            rows.push(['Diabetes households (on medication)', String(totals.diabetes_medication)]);
-            rows.push(['Hypertension households', String(totals.hypertension_affected)]);
-            rows.push(['Tuberculosis households', String(totals.tuberculosis_affected)]);
-            rows.push(['Kidney disease households', String(totals.kidney_disease_affected)]);
-            rows.push(['Eye disease households', String(totals.eye_disease_affected)]);
-            rows.push(['Asthma households', String(totals.asthma_affected)]);
-            rows.push(['Elderly malnutrition households', String(totals.malnutrition_affected)]);
-            rows.push(['Other chronic households', String(totals.other_chronic_affected)]);
-            rows.push(['Pregnant households', String(totals.pregnant)]);
-            rows.push(['ANC', String(totals.anc)]);
-            rows.push(['TT vaccine', String(totals.tt)]);
-            rows.push(['Delivered', String(totals.delivered)]);
-            rows.push(['PNC', String(totals.pnc)]);
-            rows.push(['Stunting', String(totals.stunting)]);
-            rows.push(['Wasting', String(totals.wasting)]);
-            rows.push(['Underweight', String(totals.underweight)]);
-            rows.push(['Disabled', String(totals.disabled)]);
-            rows.push(['General illness (people)', String(totals.general_illness)]);
-            rows.push(['General illness treated (people)', String(totals.general_treated)]);
-            rows.push(['Diabetes tests (people)', String(totals.diabetes_tests)]);
-            rows.push(['Static clinic patients', String(totals.static_patients)]);
+            rows.push(['Total Referred', String(referralReport.summary.total)]);
+            rows.push(['Arrived', String(referralReport.summary.arrived)]);
+            rows.push(['Pending', String(referralReport.summary.pending)]);
+            rows.push(['Not Arrived', String(referralReport.summary.not_arrived)]);
             rows.push([]);
-            rows.push(['Branch', 'Diabetes affected', 'Diabetes on medication', 'Hypertension affected', 'Hypertension on medication', 'TB affected', 'TB on medication', 'Kidney affected', 'Kidney on medication', 'Eye affected', 'Eye on medication', 'Asthma affected', 'Asthma on medication', 'Malnutrition affected', 'Malnutrition on medication', 'Other chronic affected', 'Other chronic on medication', 'Pregnant', 'ANC', 'TT', 'Delivered', 'PNC', 'Stunting', 'Wasting', 'Underweight', 'Disabled', 'General illness', 'General treated', 'Diabetes tests', 'Tests member', 'Tests non-member']);
-            illnessReport.branches.forEach((branch) => {
+            rows.push(['Name', 'Code', 'Designation', 'Branch', 'Referred', 'Arrived', 'Pending', 'Not Arrived']);
+            referralReport.employees.forEach((row) => {
                 rows.push([
-                    branch.branch_name,
-                    String(branch.diabetes_affected),
-                    String(branch.diabetes_medication),
-                    String(branch.hypertension_affected),
-                    String(branch.hypertension_medication),
-                    String(branch.tuberculosis_affected),
-                    String(branch.tuberculosis_medication),
-                    String(branch.kidney_disease_affected),
-                    String(branch.kidney_disease_medication),
-                    String(branch.eye_disease_affected),
-                    String(branch.eye_disease_medication),
-                    String(branch.asthma_affected),
-                    String(branch.asthma_medication),
-                    String(branch.malnutrition_affected),
-                    String(branch.malnutrition_medication),
-                    String(branch.other_chronic_affected),
-                    String(branch.other_chronic_medication),
-                    String(branch.pregnant),
-                    String(branch.anc),
-                    String(branch.tt),
-                    String(branch.delivered),
-                    String(branch.pnc),
-                    String(branch.stunting),
-                    String(branch.wasting),
-                    String(branch.underweight),
-                    String(branch.disabled),
-                    String(branch.general_illness),
-                    String(branch.general_treated),
-                    String(branch.diabetes_tests),
-                    String(branch.diabetes_tests_member),
-                    String(branch.diabetes_tests_non_member),
+                    row.name,
+                    row.employee_code,
+                    row.designation,
+                    row.branch_name,
+                    String(row.referred_count),
+                    String(row.arrived_count),
+                    String(row.pending_count),
+                    String(row.not_arrived_count),
                 ]);
             });
             rows.push([]);
-            rows.push(['Static clinic disease', 'Branch', 'Patients']);
-            illnessReport.static_diseases.forEach((item) => {
-                rows.push([item.disease, item.branch_name, String(item.patients)]);
+            rows.push(['Date', 'Member', 'Code', 'Phone', 'Village / Samity', 'Reason', 'Status', 'Referred By', 'Branch']);
+            referralReport.members.forEach((row) => {
+                rows.push([
+                    row.referral_date,
+                    row.member_name,
+                    row.member_code,
+                    row.phone,
+                    row.village_or_samity,
+                    row.reason,
+                    REFERRAL_STATUS_LABELS[row.status] || row.status,
+                    row.employee_name,
+                    row.branch_name,
+                ]);
             });
         }
 
@@ -978,17 +996,13 @@ export default function ReportsIndex({
                     </div>
                 )}
 
-                {activeTab === 'illness' && illnessReport && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                {activeTab === 'referral' && referralReport && (
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                         {[
-                            { label: 'ডায়াবেটিস (খানা)', value: `${illnessReport.summary.diabetes_affected} (${illnessReport.summary.diabetes_medication})` },
-                            { label: 'ডায়াবেটিস পরীক্ষা', value: String(illnessReport.summary.diabetes_tests) },
-                            { label: 'উচ্চ রক্তচাপ', value: String(illnessReport.summary.hypertension_affected) },
-                            { label: 'যক্ষা', value: String(illnessReport.summary.tuberculosis_affected) },
-                            { label: 'গর্ভবতী', value: String(illnessReport.summary.pregnant) },
-                            { label: 'স্টান্টিং', value: String(illnessReport.summary.stunting) },
-                            { label: 'সাধারণ অসুস্থ', value: String(illnessReport.summary.general_illness) },
-                            { label: 'স্ট্যাটিক ক্লিনিক', value: String(illnessReport.summary.static_patients) },
+                            { label: 'মোট রেফার', value: String(referralReport.summary.total) },
+                            { label: 'এসেছে', value: String(referralReport.summary.arrived) },
+                            { label: 'অপেক্ষমাণ', value: String(referralReport.summary.pending) },
+                            { label: 'আসেনি', value: String(referralReport.summary.not_arrived) },
                         ].map((item) => (
                             <div key={item.label} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs print:border-black print:shadow-none">
                                 <span className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">
@@ -1002,7 +1016,7 @@ export default function ReportsIndex({
                     </div>
                 )}
 
-                {activeTab !== 'employee' && activeTab !== 'illness' && (
+                {activeTab !== 'employee' && activeTab !== 'illness' && activeTab !== 'referral' && (
                 <div className="screen-only grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -1506,35 +1520,73 @@ export default function ReportsIndex({
                     )}
 
                     {activeTab === 'illness' && illnessReport && (
-                        <div className="space-y-4 p-3 print:space-y-3 print:p-0">
+                        <div className="space-y-3 p-3 print:space-y-3 print:p-0">
                             <p className="text-[11px] text-muted-foreground print:text-black">
-                                খানার সংখ্যা মানে যে খানায় এই অবস্থা পাওয়া গেছে। বন্ধনীর সংখ্যা মানে নিয়মিত ওষুধ খাচ্ছেন। ডায়াবেটিস পরীক্ষা, সাধারণ অসুস্থতা এবং স্ট্যাটিক ক্লিনিক জনসংখ্যা।
+                                নির্বাচিত তারিখের মোট সংখ্যা। শাখা বা কর্মী বাছলে শুধু সেই অংশের মোট দেখাবে। খানা মানে যে খানায় এই অবস্থা পাওয়া গেছে। ডায়াবেটিস পরীক্ষা, সাধারণ অসুস্থতা এবং স্ট্যাটিক ক্লিনিক জনসংখ্যা।
                             </p>
-
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs print:text-[8pt]">
+                                <table className="w-full text-left text-xs print:text-[10pt]">
                                     <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                         <tr>
-                                            <th className="px-2 py-2">Branch</th>
-                                            {CHRONIC_COLUMNS.map((column) => (
-                                                <th key={column.key} className="px-2 py-2 text-right">{column.label}</th>
-                                            ))}
+                                            <th className="px-3 py-2.5">বিষয়</th>
+                                            <th className="px-3 py-2.5">একক</th>
+                                            <th className="px-3 py-2.5 text-right">মোট</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border print:divide-black">
-                                        {illnessReport.branches.length === 0 ? (
+                                        {ILLNESS_POINTS.map((point) => (
+                                            <tr key={point.key}>
+                                                <td className="px-3 py-2 font-semibold text-foreground">{point.label}</td>
+                                                <td className="px-3 py-2 text-muted-foreground print:text-black">{point.unit}</td>
+                                                <td className="px-3 py-2 text-right text-base font-bold text-foreground">{illnessReport.summary[point.key]}</td>
+                                            </tr>
+                                        ))}
+                                        {illnessReport.static_diseases.map((item) => (
+                                            <tr key={item.disease}>
+                                                <td className="px-3 py-2 font-semibold text-foreground">স্ট্যাটিক ক্লিনিক — {item.disease}</td>
+                                                <td className="px-3 py-2 text-muted-foreground print:text-black">জন</td>
+                                                <td className="px-3 py-2 text-right text-base font-bold text-foreground">{item.patients}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+
+                    {activeTab === 'referral' && referralReport && (
+                        <div className="space-y-4 p-3 print:space-y-3 print:p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-3 py-2.5">Name</th>
+                                            <th className="px-3 py-2.5">Code</th>
+                                            <th className="px-3 py-2.5">Designation</th>
+                                            <th className="px-3 py-2.5">Branch</th>
+                                            <th className="px-3 py-2.5 text-right">রেফার</th>
+                                            <th className="px-3 py-2.5 text-right">এসেছে</th>
+                                            <th className="px-3 py-2.5 text-right">অপেক্ষমাণ</th>
+                                            <th className="px-3 py-2.5 text-right">আসেনি</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {referralReport.employees.length === 0 ? (
                                             <tr>
-                                                <td colSpan={9} className="p-6 text-center text-muted-foreground">No household disease records in this range.</td>
+                                                <td colSpan={8} className="p-6 text-center text-muted-foreground">No referrals in this range.</td>
                                             </tr>
                                         ) : (
-                                            illnessReport.branches.map((branch) => (
-                                                <tr key={`chronic-${branch.branch_id}`}>
-                                                    <td className="px-2 py-2 font-bold text-foreground">{branch.branch_name}</td>
-                                                    {CHRONIC_COLUMNS.map((column) => (
-                                                        <td key={column.key} className="px-2 py-2 text-right text-foreground">
-                                                            {branch[column.key]} ({branch[column.med]})
-                                                        </td>
-                                                    ))}
+                                            referralReport.employees.map((row) => (
+                                                <tr key={row.user_id}>
+                                                    <td className="px-3 py-2 font-bold text-foreground">{row.name}</td>
+                                                    <td className="px-3 py-2">{row.employee_code}</td>
+                                                    <td className="px-3 py-2">{row.designation}</td>
+                                                    <td className="px-3 py-2">{row.branch_name}</td>
+                                                    <td className="px-3 py-2 text-right font-bold">{row.referred_count}</td>
+                                                    <td className="px-3 py-2 text-right">{row.arrived_count}</td>
+                                                    <td className="px-3 py-2 text-right">{row.pending_count}</td>
+                                                    <td className="px-3 py-2 text-right">{row.not_arrived_count}</td>
                                                 </tr>
                                             ))
                                         )}
@@ -1543,85 +1595,37 @@ export default function ReportsIndex({
                             </div>
 
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs print:text-[8pt]">
-                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
-                                        <tr>
-                                            <th className="px-2 py-2">Branch</th>
-                                            <th className="px-2 py-2 text-right">গর্ভবতী</th>
-                                            <th className="px-2 py-2 text-right">ANC</th>
-                                            <th className="px-2 py-2 text-right">TT</th>
-                                            <th className="px-2 py-2 text-right">প্রসব</th>
-                                            <th className="px-2 py-2 text-right">PNC</th>
-                                            <th className="px-2 py-2 text-right">স্টান্টিং</th>
-                                            <th className="px-2 py-2 text-right">ওয়েস্টিং</th>
-                                            <th className="px-2 py-2 text-right">আন্ডারওয়েট</th>
-                                            <th className="px-2 py-2 text-right">প্রতিবন্ধী</th>
-                                            <th className="px-2 py-2 text-right">সাধারণ অসুস্থ</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border print:divide-black">
-                                        {illnessReport.branches.map((branch) => (
-                                            <tr key={`maternal-${branch.branch_id}`}>
-                                                <td className="px-2 py-2 font-bold text-foreground">{branch.branch_name}</td>
-                                                <td className="px-2 py-2 text-right">{branch.pregnant}</td>
-                                                <td className="px-2 py-2 text-right">{branch.anc}</td>
-                                                <td className="px-2 py-2 text-right">{branch.tt}</td>
-                                                <td className="px-2 py-2 text-right">{branch.delivered}</td>
-                                                <td className="px-2 py-2 text-right">{branch.pnc}</td>
-                                                <td className="px-2 py-2 text-right">{branch.stunting}</td>
-                                                <td className="px-2 py-2 text-right">{branch.wasting}</td>
-                                                <td className="px-2 py-2 text-right">{branch.underweight}</td>
-                                                <td className="px-2 py-2 text-right">{branch.disabled}</td>
-                                                <td className="px-2 py-2 text-right">{branch.general_illness} ({branch.general_treated})</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs print:text-[8.5pt]">
                                     <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
                                         <tr>
-                                            <th className="px-3 py-2.5">Branch</th>
-                                            <th className="px-3 py-2.5 text-right">ডায়াবেটিস পরীক্ষা</th>
-                                            <th className="px-3 py-2.5 text-right">সদস্য</th>
-                                            <th className="px-3 py-2.5 text-right">অ-সদস্য</th>
+                                            <th className="px-3 py-2.5">তারিখ</th>
+                                            <th className="px-3 py-2.5">সদস্য</th>
+                                            <th className="px-3 py-2.5">কোড</th>
+                                            <th className="px-3 py-2.5">ফোন</th>
+                                            <th className="px-3 py-2.5">গ্রাম / সমিতি</th>
+                                            <th className="px-3 py-2.5">কারণ</th>
+                                            <th className="px-3 py-2.5">স্ট্যাটাস</th>
+                                            <th className="px-3 py-2.5">রেফার করেছেন</th>
+                                            <th className="px-3 py-2.5">শাখা</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border print:divide-black">
-                                        {illnessReport.branches.map((branch) => (
-                                            <tr key={`diabetes-${branch.branch_id}`}>
-                                                <td className="px-3 py-2 font-bold text-foreground">{branch.branch_name}</td>
-                                                <td className="px-3 py-2 text-right font-bold">{branch.diabetes_tests}</td>
-                                                <td className="px-3 py-2 text-right">{branch.diabetes_tests_member}</td>
-                                                <td className="px-3 py-2 text-right">{branch.diabetes_tests_non_member}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs print:text-[8.5pt]">
-                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
-                                        <tr>
-                                            <th className="px-3 py-2.5">স্ট্যাটিক ক্লিনিকের রোগ</th>
-                                            <th className="px-3 py-2.5">Branch</th>
-                                            <th className="px-3 py-2.5 text-right">রোগী</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border print:divide-black">
-                                        {illnessReport.static_diseases.length === 0 ? (
+                                        {referralReport.members.length === 0 ? (
                                             <tr>
-                                                <td colSpan={3} className="p-6 text-center text-muted-foreground">No static clinic disease names in this range.</td>
+                                                <td colSpan={9} className="p-6 text-center text-muted-foreground">No referred members in this range.</td>
                                             </tr>
                                         ) : (
-                                            illnessReport.static_diseases.map((item) => (
-                                                <tr key={`${item.branch_name}-${item.disease}`}>
-                                                    <td className="px-3 py-2 font-bold text-foreground">{item.disease}</td>
-                                                    <td className="px-3 py-2 text-foreground">{item.branch_name}</td>
-                                                    <td className="px-3 py-2 text-right font-bold">{item.patients}</td>
+                                            referralReport.members.map((row) => (
+                                                <tr key={row.id}>
+                                                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(row.referral_date)}</td>
+                                                    <td className="px-3 py-2 font-bold text-foreground">{row.member_name}</td>
+                                                    <td className="px-3 py-2">{row.member_code}</td>
+                                                    <td className="px-3 py-2">{row.phone}</td>
+                                                    <td className="px-3 py-2">{row.village_or_samity}</td>
+                                                    <td className="px-3 py-2">{row.reason}</td>
+                                                    <td className="px-3 py-2">{REFERRAL_STATUS_LABELS[row.status] || row.status}</td>
+                                                    <td className="px-3 py-2">{row.employee_name}</td>
+                                                    <td className="px-3 py-2">{row.branch_name}</td>
                                                 </tr>
                                             ))
                                         )}
