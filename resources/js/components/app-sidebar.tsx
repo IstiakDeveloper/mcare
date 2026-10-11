@@ -108,9 +108,50 @@ export function AppSidebar() {
             icon: ClipboardList,
         },
         {
-            title: 'Reports & Analytics',
-            href: '/reports',
+            title: 'Reports',
             icon: FileText,
+            items: [
+                {
+                    title: 'Field Activities',
+                    href: '/reports?report_type=activities',
+                    icon: FileText,
+                },
+                {
+                    title: 'Household Visits',
+                    href: '/reports?report_type=households',
+                    icon: Home,
+                },
+                {
+                    title: 'Fee & Diabetes',
+                    href: '/reports?report_type=fee_collections',
+                    icon: Coins,
+                },
+                {
+                    title: 'Clinical Patients',
+                    href: '/reports?report_type=patients',
+                    icon: Stethoscope,
+                },
+                {
+                    title: 'Branch Performance',
+                    href: '/reports?report_type=branches',
+                    icon: Building2,
+                },
+                {
+                    title: 'Officer Performance',
+                    href: '/reports?report_type=officers',
+                    icon: UserCheck,
+                },
+                {
+                    title: 'Employee Work Report',
+                    href: '/reports?report_type=employee',
+                    icon: Users,
+                },
+                {
+                    title: 'Illness & Disease',
+                    href: '/reports?report_type=illness',
+                    icon: HeartPulse,
+                },
+            ],
         },
     ];
 
@@ -191,24 +232,50 @@ export function AppSidebar() {
 
     const workerReportsItems: NavItem[] = [
         {
-            title: 'Activity Summary',
-            href: '/reports?report_type=activities',
+            title: 'Reports',
             icon: FileText,
-        },
-        {
-            title: 'Household Visits',
-            href: '/reports?report_type=households',
-            icon: Home,
-        },
-        {
-            title: 'Fee & Diabetes Register',
-            href: '/reports?report_type=fee_collections',
-            icon: Coins,
-        },
-        {
-            title: 'Patients Register',
-            href: '/reports?report_type=patients',
-            icon: Stethoscope,
+            items: [
+                {
+                    title: 'Field Activities',
+                    href: '/reports?report_type=activities',
+                    icon: FileText,
+                },
+                {
+                    title: 'Household Visits',
+                    href: '/reports?report_type=households',
+                    icon: Home,
+                },
+                {
+                    title: 'Fee & Diabetes',
+                    href: '/reports?report_type=fee_collections',
+                    icon: Coins,
+                },
+                {
+                    title: 'Clinical Patients',
+                    href: '/reports?report_type=patients',
+                    icon: Stethoscope,
+                },
+                {
+                    title: 'Branch Performance',
+                    href: '/reports?report_type=branches',
+                    icon: Building2,
+                },
+                {
+                    title: 'Officer Performance',
+                    href: '/reports?report_type=officers',
+                    icon: UserCheck,
+                },
+                {
+                    title: 'Employee Work Report',
+                    href: '/reports?report_type=employee',
+                    icon: Users,
+                },
+                {
+                    title: 'Illness & Disease',
+                    href: '/reports?report_type=illness',
+                    icon: HeartPulse,
+                },
+            ],
         },
     ];
 

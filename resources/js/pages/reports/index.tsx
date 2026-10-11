@@ -28,7 +28,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -110,8 +110,121 @@ type OfficerOption = {
     branch_name?: string | null;
 };
 
+type EmployeeSubmission = {
+    date: string;
+    source: string;
+    work_type: string;
+    location: string;
+    quantity: string;
+    fee: number | null;
+    description: string;
+};
+
+type IllnessBranch = {
+    branch_id: number;
+    branch_name: string;
+    diabetes_affected: number;
+    diabetes_medication: number;
+    hypertension_affected: number;
+    hypertension_medication: number;
+    tuberculosis_affected: number;
+    tuberculosis_medication: number;
+    kidney_disease_affected: number;
+    kidney_disease_medication: number;
+    eye_disease_affected: number;
+    eye_disease_medication: number;
+    asthma_affected: number;
+    asthma_medication: number;
+    malnutrition_affected: number;
+    malnutrition_medication: number;
+    other_chronic_affected: number;
+    other_chronic_medication: number;
+    pregnant: number;
+    anc: number;
+    tt: number;
+    delivered: number;
+    pnc: number;
+    stunting: number;
+    wasting: number;
+    underweight: number;
+    disabled: number;
+    general_illness: number;
+    general_treated: number;
+    diabetes_tests: number;
+    diabetes_tests_member: number;
+    diabetes_tests_non_member: number;
+};
+
+type IllnessReport = {
+    summary: {
+        diabetes_affected: number;
+        diabetes_medication: number;
+        hypertension_affected: number;
+        hypertension_medication: number;
+        tuberculosis_affected: number;
+        tuberculosis_medication: number;
+        kidney_disease_affected: number;
+        kidney_disease_medication: number;
+        eye_disease_affected: number;
+        eye_disease_medication: number;
+        asthma_affected: number;
+        asthma_medication: number;
+        malnutrition_affected: number;
+        malnutrition_medication: number;
+        other_chronic_affected: number;
+        other_chronic_medication: number;
+        pregnant: number;
+        anc: number;
+        tt: number;
+        delivered: number;
+        pnc: number;
+        stunting: number;
+        wasting: number;
+        underweight: number;
+        disabled: number;
+        general_illness: number;
+        general_treated: number;
+        diabetes_tests: number;
+        static_patients: number;
+    };
+    branches: IllnessBranch[];
+    static_diseases: { disease: string; branch_name: string; patients: number }[];
+};
+
+const CHRONIC_COLUMNS: { key: keyof IllnessBranch; med: keyof IllnessBranch; label: string }[] = [
+    { key: 'diabetes_affected', med: 'diabetes_medication', label: 'ডায়াবেটিস' },
+    { key: 'hypertension_affected', med: 'hypertension_medication', label: 'উচ্চ রক্তচাপ' },
+    { key: 'tuberculosis_affected', med: 'tuberculosis_medication', label: 'যক্ষা' },
+    { key: 'kidney_disease_affected', med: 'kidney_disease_medication', label: 'কিডনি' },
+    { key: 'eye_disease_affected', med: 'eye_disease_medication', label: 'চোখ' },
+    { key: 'asthma_affected', med: 'asthma_medication', label: 'হাঁপানি' },
+    { key: 'malnutrition_affected', med: 'malnutrition_medication', label: 'অপুষ্টি' },
+    { key: 'other_chronic_affected', med: 'other_chronic_medication', label: 'অন্যান্য' },
+];
+
+type EmployeeReport = {
+    requires_selection: boolean;
+    employee: {
+        id: number;
+        name: string;
+        employee_code: string;
+        designation: string;
+        branch_name: string;
+    } | null;
+    summary: {
+        total_submissions: number;
+        field_activities: number;
+        health_camps: number;
+        fee_collections: number;
+        health_cards: number;
+        total_fee_amount: number;
+    };
+    by_type: { work_type: string; source: string; count: number }[];
+    submissions: EmployeeSubmission[];
+};
+
 type Props = {
-    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers';
+    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers' | 'employee' | 'illness';
     filters: {
         start_date: string;
         end_date: string;
@@ -135,6 +248,8 @@ type Props = {
     patientRecords: PatientRecord[];
     branchMatrix: BranchMatrixItem[];
     officerMatrix: OfficerMatrixItem[];
+    employeeReport?: EmployeeReport | null;
+    illnessReport?: IllnessReport | null;
     branches: BranchOption[];
     officers?: OfficerOption[];
     today: string;
@@ -148,18 +263,16 @@ type Props = {
     };
 };
 
-const REPORT_TABS = [
-    { key: 'activities', label: '1. Field Activities Summary', short: 'Activities', icon: ClipboardListIcon },
-    { key: 'households', label: '2. Household Visits Register', short: 'Households', icon: Home },
-    { key: 'fee_collections', label: '3. Fee & Diabetes Register', short: 'Fees & Diabetes', icon: Coins },
-    { key: 'patients', label: '4. Clinical Consultations Register', short: 'Patients', icon: Stethoscope },
-    { key: 'branches', label: '5. Branch Performance Matrix', short: 'Branch Matrix', icon: Building2 },
-    { key: 'officers', label: '6. Officer Performance Summary', short: 'Officer Matrix', icon: UserCheck },
-];
-
-function ClipboardListIcon(props: React.SVGProps<SVGSVGElement>) {
-    return <FileText className="size-4" {...props} />;
-}
+const REPORT_TITLES: Record<string, string> = {
+    activities: 'Field Activities Summary',
+    households: 'Household Visits Register',
+    fee_collections: 'Fee & Diabetes Register',
+    patients: 'Clinical Consultations Register',
+    branches: 'Branch Performance Matrix',
+    officers: 'Officer Performance Summary',
+    employee: 'Employee Work Report',
+    illness: 'Illness & Disease Report',
+};
 
 export default function ReportsIndex({
     reportType = 'activities',
@@ -172,23 +285,48 @@ export default function ReportsIndex({
     patientRecords = [],
     branchMatrix = [],
     officerMatrix = [],
+    employeeReport = null,
+    illnessReport = null,
     branches = [],
     officers = [],
     today,
     user,
 }: Props) {
-    const [activeTab, setActiveTab] = useState<string>(filters.report_type || reportType);
+    const activeTab = filters.report_type || reportType;
     const [startDate, setStartDate] = useState(filters.start_date || today);
     const [endDate, setEndDate] = useState(filters.end_date || today);
     const [branchId, setBranchId] = useState(filters.branch_id || 'all');
     const [userId, setUserId] = useState(filters.user_id || 'all');
+    const [officerSearch, setOfficerSearch] = useState('');
+
+    useEffect(() => {
+        setStartDate(filters.start_date || today);
+        setEndDate(filters.end_date || today);
+        setBranchId(filters.branch_id || 'all');
+        setUserId(filters.user_id || 'all');
+    }, [filters.start_date, filters.end_date, filters.branch_id, filters.user_id, today]);
 
     const isPrivileged = Boolean(user.is_admin || user.is_branch_manager || user.role?.slug === 'admin' || user.role?.slug === 'branch-manager');
 
     // Filter officers for dropdown based on chosen branch
     const filteredOfficersForDropdown = officers.filter((off) => {
-        if (branchId === 'all') return true;
-        return String(off.branch_id) === String(branchId);
+        if (branchId !== 'all' && String(off.branch_id) !== String(branchId)) {
+            return false;
+        }
+
+        if (activeTab !== 'employee') {
+            return true;
+        }
+
+        const query = officerSearch.trim().toLowerCase();
+
+        if (!query) {
+            return true;
+        }
+
+        return [off.name, off.employee_code, off.designation]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(query));
     });
 
     const applyFilter = (newTab?: string, newStart?: string, newEnd?: string, newBranch?: string, newUser?: string) => {
@@ -348,6 +486,123 @@ export default function ReportsIndex({
                     String(o.total_fee_collected),
                 ]);
             });
+        } else if (activeTab === 'employee') {
+            const employee = employeeReport?.employee;
+            const safeName = (employee?.name || 'employee').replace(/[^\w-]+/g, '_');
+            filename = `Mcare_Employee_Report_${safeName}_${startDate}_to_${endDate}.csv`;
+
+            if (!employeeReport?.employee) {
+                rows.push(['Employee Work Report']);
+                rows.push(['Select an employee and a date range to export this report.']);
+            } else {
+                const employee = employeeReport.employee;
+                const reportSummary = employeeReport.summary;
+                rows.push(['Employee Work Report']);
+                rows.push(['Name', employee.name]);
+                rows.push(['Employee Code', employee.employee_code]);
+                rows.push(['Designation', employee.designation]);
+                rows.push(['Branch', employee.branch_name]);
+                rows.push(['Period', `${startDate} to ${endDate}`]);
+                rows.push([]);
+                rows.push(['Summary']);
+                rows.push(['Total Submissions', String(reportSummary.total_submissions)]);
+                rows.push(['Field Activities', String(reportSummary.field_activities)]);
+                rows.push(['Health Camps', String(reportSummary.health_camps)]);
+                rows.push(['Fee Collections', String(reportSummary.fee_collections)]);
+                rows.push(['Health Cards', String(reportSummary.health_cards)]);
+                rows.push(['Total Fee (BDT)', String(reportSummary.total_fee_amount)]);
+                rows.push([]);
+                rows.push(['Work Type', 'Source', 'Count']);
+                employeeReport.by_type.forEach((item) => {
+                    rows.push([item.work_type, item.source, String(item.count)]);
+                });
+                rows.push([]);
+                rows.push(['SL', 'Date', 'Source', 'Work Type', 'Location', 'Quantity', 'Fee (BDT)', 'Description']);
+                employeeReport.submissions.forEach((row, idx) => {
+                    rows.push([
+                        String(idx + 1),
+                        row.date,
+                        row.source,
+                        row.work_type,
+                        row.location,
+                        row.quantity,
+                        row.fee === null ? '' : String(row.fee),
+                        row.description,
+                    ]);
+                });
+            }
+        } else if (activeTab === 'illness' && illnessReport) {
+            filename = `Mcare_Illness_Report_${startDate}_to_${endDate}.csv`;
+            const totals = illnessReport.summary;
+            rows.push(['Illness & Disease Report']);
+            rows.push(['Period', `${startDate} to ${endDate}`]);
+            rows.push(['Branch', selectedBranchName]);
+            rows.push([]);
+            rows.push(['Summary']);
+            rows.push(['Diabetes households (affected)', String(totals.diabetes_affected)]);
+            rows.push(['Diabetes households (on medication)', String(totals.diabetes_medication)]);
+            rows.push(['Hypertension households', String(totals.hypertension_affected)]);
+            rows.push(['Tuberculosis households', String(totals.tuberculosis_affected)]);
+            rows.push(['Kidney disease households', String(totals.kidney_disease_affected)]);
+            rows.push(['Eye disease households', String(totals.eye_disease_affected)]);
+            rows.push(['Asthma households', String(totals.asthma_affected)]);
+            rows.push(['Elderly malnutrition households', String(totals.malnutrition_affected)]);
+            rows.push(['Other chronic households', String(totals.other_chronic_affected)]);
+            rows.push(['Pregnant households', String(totals.pregnant)]);
+            rows.push(['ANC', String(totals.anc)]);
+            rows.push(['TT vaccine', String(totals.tt)]);
+            rows.push(['Delivered', String(totals.delivered)]);
+            rows.push(['PNC', String(totals.pnc)]);
+            rows.push(['Stunting', String(totals.stunting)]);
+            rows.push(['Wasting', String(totals.wasting)]);
+            rows.push(['Underweight', String(totals.underweight)]);
+            rows.push(['Disabled', String(totals.disabled)]);
+            rows.push(['General illness (people)', String(totals.general_illness)]);
+            rows.push(['General illness treated (people)', String(totals.general_treated)]);
+            rows.push(['Diabetes tests (people)', String(totals.diabetes_tests)]);
+            rows.push(['Static clinic patients', String(totals.static_patients)]);
+            rows.push([]);
+            rows.push(['Branch', 'Diabetes affected', 'Diabetes on medication', 'Hypertension affected', 'Hypertension on medication', 'TB affected', 'TB on medication', 'Kidney affected', 'Kidney on medication', 'Eye affected', 'Eye on medication', 'Asthma affected', 'Asthma on medication', 'Malnutrition affected', 'Malnutrition on medication', 'Other chronic affected', 'Other chronic on medication', 'Pregnant', 'ANC', 'TT', 'Delivered', 'PNC', 'Stunting', 'Wasting', 'Underweight', 'Disabled', 'General illness', 'General treated', 'Diabetes tests', 'Tests member', 'Tests non-member']);
+            illnessReport.branches.forEach((branch) => {
+                rows.push([
+                    branch.branch_name,
+                    String(branch.diabetes_affected),
+                    String(branch.diabetes_medication),
+                    String(branch.hypertension_affected),
+                    String(branch.hypertension_medication),
+                    String(branch.tuberculosis_affected),
+                    String(branch.tuberculosis_medication),
+                    String(branch.kidney_disease_affected),
+                    String(branch.kidney_disease_medication),
+                    String(branch.eye_disease_affected),
+                    String(branch.eye_disease_medication),
+                    String(branch.asthma_affected),
+                    String(branch.asthma_medication),
+                    String(branch.malnutrition_affected),
+                    String(branch.malnutrition_medication),
+                    String(branch.other_chronic_affected),
+                    String(branch.other_chronic_medication),
+                    String(branch.pregnant),
+                    String(branch.anc),
+                    String(branch.tt),
+                    String(branch.delivered),
+                    String(branch.pnc),
+                    String(branch.stunting),
+                    String(branch.wasting),
+                    String(branch.underweight),
+                    String(branch.disabled),
+                    String(branch.general_illness),
+                    String(branch.general_treated),
+                    String(branch.diabetes_tests),
+                    String(branch.diabetes_tests_member),
+                    String(branch.diabetes_tests_non_member),
+                ]);
+            });
+            rows.push([]);
+            rows.push(['Static clinic disease', 'Branch', 'Patients']);
+            illnessReport.static_diseases.forEach((item) => {
+                rows.push([item.disease, item.branch_name, String(item.patients)]);
+            });
         }
 
         const csvContent = '\uFEFF' + rows.map((e) => e.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -363,7 +618,7 @@ export default function ReportsIndex({
 
     const selectedBranchName = branchId !== 'all' ? branches.find((b) => String(b.id) === branchId)?.name : 'All Branches (সকল শাখা)';
     const selectedOfficerName = userId !== 'all' ? officers.find((o) => String(o.id) === userId)?.name : 'All Officers (সকল কর্মকর্তা)';
-    const currentTabTitle = REPORT_TABS.find((t) => t.key === activeTab)?.label || 'Official Report';
+    const currentTabTitle = REPORT_TITLES[activeTab] || 'Official Report';
 
     return (
         <>
@@ -374,24 +629,68 @@ export default function ReportsIndex({
                 @media print {
                     @page {
                         size: A4 portrait;
-                        margin: 12mm 10mm 15mm 10mm;
+                        margin: 12mm 10mm 14mm 10mm;
                     }
-                    body {
+                    html, body {
                         background: #ffffff !important;
                         color: #000000 !important;
-                        font-size: 9pt !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
+                        height: auto !important;
+                        overflow: visible !important;
                     }
-                    /* Force hide web UI elements in print */
-                    nav, aside, header, footer, .sidebar, [data-sidebar], [data-mobile-nav], .pb-safe, [class*="bottom-0"], button, input, select, .print\\:hidden, .no-print {
+                    [data-slot="sidebar"],
+                    [data-slot="sidebar-header"],
+                    [data-sidebar],
+                    header,
+                    nav,
+                    aside,
+                    footer,
+                    [data-mobile-nav],
+                    [data-sonner-toaster] {
                         display: none !important;
                     }
-                    .print-document-container {
+                    [data-slot="sidebar-wrapper"],
+                    [data-slot="sidebar-inset"] {
+                        display: block !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        min-height: 0 !important;
+                        height: auto !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        box-shadow: none !important;
+                        border: 0 !important;
+                        border-radius: 0 !important;
+                        overflow: visible !important;
+                    }
+                    #official-report {
                         width: 100% !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
+                        color: #000000 !important;
+                        box-shadow: none !important;
+                    }
+                    #official-report .screen-only {
+                        display: none !important;
+                    }
+                    #official-report,
+                    #official-report * {
+                        color: #000000 !important;
+                        background: transparent !important;
+                        box-shadow: none !important;
+                    }
+                    #official-report {
+                        background: #ffffff !important;
+                    }
+                    #official-report th {
+                        background: #f0f0f0 !important;
+                    }
+                    #official-report .print-letterhead {
+                        display: block !important;
+                    }
+                    #official-report .print-signature {
+                        display: grid !important;
                     }
                     table {
                         width: 100% !important;
@@ -413,6 +712,7 @@ export default function ReportsIndex({
                         padding: 4px 6px !important;
                         font-size: 8.5pt !important;
                         color: #000000 !important;
+                        background: #ffffff !important;
                     }
                     th {
                         background-color: #f0f0f0 !important;
@@ -421,8 +721,8 @@ export default function ReportsIndex({
                 }
             `}</style>
 
-            {/* OFFICIAL A4 LETTERHEAD HEADER (VISIBLE IN PRINT ONLY) */}
-            <div className="hidden print:block text-black font-sans mb-4 border-b-2 border-black pb-3">
+            <div id="official-report">
+            <div className="print-letterhead hidden text-black font-sans mb-4 border-b-2 border-black pb-3">
                 <div className="text-center space-y-0.5">
                     <h1 className="text-lg font-black tracking-wider uppercase">
                         M Care Health Services Management System
@@ -448,9 +748,9 @@ export default function ReportsIndex({
                 </div>
             </div>
 
-            <div className="print-document-container mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-12 print:p-0">
+            <div className="print-document-container mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-12 print:p-0 print:gap-3">
                 {/* SCREEN ONLY HEADER */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-2xs print:hidden">
+                <div className="screen-only flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-2xs">
                     <div className="flex items-center gap-3">
                         <span className="flex size-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-xs shrink-0">
                             <TrendingUp className="size-5" />
@@ -458,14 +758,14 @@ export default function ReportsIndex({
                         <div>
                             <div className="flex items-center gap-2">
                                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-                                    Reports & Operational Analytics
+                                    {currentTabTitle}
                                 </h1>
                                 <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 text-[10px] font-bold">
                                     A4 Print & Excel Ready
                                 </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Filter by Branch and Officer to view, export, and print verified field data
+                                Choose a report from the Reports menu. Filter by date, branch, and employee, then print or export.
                             </p>
                         </div>
                     </div>
@@ -508,34 +808,7 @@ export default function ReportsIndex({
                     </div>
                 </div>
 
-                {/* REPORT SUB-TABS (NAVIGATION) */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 bg-card p-1.5 rounded-2xl border border-border/80 shadow-2xs print:hidden">
-                    {REPORT_TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => {
-                                    setActiveTab(tab.key);
-                                    applyFilter(tab.key, startDate, endDate, branchId, userId);
-                                }}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                                    isActive
-                                        ? 'bg-primary text-primary-foreground shadow-xs'
-                                        : 'bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                                }`}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                <span>{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* ADVANCED MULTI-LEVEL FILTER BAR (DATE, BRANCH, OFFICER) */}
-                <div className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs print:hidden space-y-3">
+                <div className="screen-only rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs space-y-3">
                     <div className="flex flex-col gap-3">
                         {/* Quick Date Presets */}
                         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -570,6 +843,18 @@ export default function ReportsIndex({
                                 </span>
                             </div>
                         </div>
+
+                        {activeTab === 'employee' && isPrivileged && (
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={officerSearch}
+                                    onChange={(e) => setOfficerSearch(e.target.value)}
+                                    placeholder="Search employee by name, code, or designation"
+                                    className="h-9 rounded-xl bg-background pl-9 text-xs"
+                                />
+                            </div>
+                        )}
 
                         {/* Date, Branch & User Selector Controls */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 items-center">
@@ -627,10 +912,12 @@ export default function ReportsIndex({
                                     disabled={!isPrivileged && officers.length <= 1}
                                     className="h-9 w-full rounded-xl border border-input bg-background px-2.5 text-xs font-medium disabled:opacity-60"
                                 >
-                                    <option value="all">All Officers</option>
+                                    <option value="all">{activeTab === 'employee' ? 'Select an employee' : 'All Officers'}</option>
                                     {filteredOfficersForDropdown.map((off) => (
                                         <option key={off.id} value={off.id}>
-                                            {off.name} {off.employee_code ? `(${off.employee_code})` : ''}
+                                            {off.name}
+                                            {off.employee_code ? ` (${off.employee_code})` : ''}
+                                            {activeTab === 'employee' && off.designation ? ` — ${off.designation}` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -669,8 +956,54 @@ export default function ReportsIndex({
                     </div>
                 </div>
 
-                {/* 4 SUMMARY STAT CARDS (SCREEN ONLY) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 print:hidden">
+                {activeTab === 'employee' && employeeReport?.employee && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                        {[
+                            { label: 'Total Submissions', value: String(employeeReport.summary.total_submissions) },
+                            { label: 'Field Activities', value: String(employeeReport.summary.field_activities) },
+                            { label: 'Health Camps', value: String(employeeReport.summary.health_camps) },
+                            { label: 'Fee Collections', value: String(employeeReport.summary.fee_collections) },
+                            { label: 'Health Cards', value: String(employeeReport.summary.health_cards) },
+                            { label: 'Fees Collected', value: `৳${Number(employeeReport.summary.total_fee_amount).toLocaleString()}` },
+                        ].map((item) => (
+                            <div key={item.label} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs print:border-black print:shadow-none">
+                                <span className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">
+                                    {item.label}
+                                </span>
+                                <p className="mt-0.5 text-lg font-bold text-foreground print:text-black sm:text-xl">
+                                    {item.value}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {activeTab === 'illness' && illnessReport && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                        {[
+                            { label: 'ডায়াবেটিস (খানা)', value: `${illnessReport.summary.diabetes_affected} (${illnessReport.summary.diabetes_medication})` },
+                            { label: 'ডায়াবেটিস পরীক্ষা', value: String(illnessReport.summary.diabetes_tests) },
+                            { label: 'উচ্চ রক্তচাপ', value: String(illnessReport.summary.hypertension_affected) },
+                            { label: 'যক্ষা', value: String(illnessReport.summary.tuberculosis_affected) },
+                            { label: 'গর্ভবতী', value: String(illnessReport.summary.pregnant) },
+                            { label: 'স্টান্টিং', value: String(illnessReport.summary.stunting) },
+                            { label: 'সাধারণ অসুস্থ', value: String(illnessReport.summary.general_illness) },
+                            { label: 'স্ট্যাটিক ক্লিনিক', value: String(illnessReport.summary.static_patients) },
+                        ].map((item) => (
+                            <div key={item.label} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs print:border-black print:shadow-none">
+                                <span className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">
+                                    {item.label}
+                                </span>
+                                <p className="mt-0.5 text-lg font-bold text-foreground print:text-black sm:text-xl">
+                                    {item.value}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {activeTab !== 'employee' && activeTab !== 'illness' && (
+                <div className="screen-only grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
                             Field Sessions
@@ -707,6 +1040,7 @@ export default function ReportsIndex({
                         </p>
                     </div>
                 </div>
+                )}
 
                 {/* REPORT TABLES BASED ON ACTIVE TAB */}
                 <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden print:border-none print:shadow-none print:rounded-none">
@@ -1012,7 +1346,7 @@ export default function ReportsIndex({
                                         <th className="px-3 py-2.5 text-center">Beneficiaries</th>
                                         <th className="px-3 py-2.5 text-center">Households</th>
                                         <th className="px-3 py-2.5 text-right">Total Fees (BDT)</th>
-                                        <th className="px-3 py-2.5 text-right print:hidden">Action</th>
+                                        <th className="screen-only px-3 py-2.5 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border print:divide-black">
@@ -1047,14 +1381,13 @@ export default function ReportsIndex({
                                                 <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 print:text-black">
                                                     ৳{Number(o.total_fee_collected).toFixed(2)}
                                                 </td>
-                                                <td className="px-3 py-2 text-right print:hidden">
+                                                <td className="screen-only px-3 py-2 text-right">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => {
                                                             setUserId(String(o.user_id));
-                                                            setActiveTab('activities');
                                                             applyFilter('activities', startDate, endDate, branchId, String(o.user_id));
                                                         }}
                                                         className="h-7 px-2 text-[11px] font-semibold"
@@ -1069,10 +1402,238 @@ export default function ReportsIndex({
                             </table>
                         </div>
                     )}
+
+                    {activeTab === 'employee' && (
+                        <div className="space-y-4 p-3 print:p-0">
+                            {!employeeReport?.employee ? (
+                                <div className="screen-only rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                                    Select an employee and a date range to see how many submissions they made and what work they completed.
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2 border border-border p-3 text-xs print:border-black print:text-[9pt] sm:grid-cols-4">
+                                        <div>
+                                            <div className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">Employee</div>
+                                            <div className="font-bold text-foreground print:text-black">{employeeReport.employee.name}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">Employee Code</div>
+                                            <div className="font-mono font-bold text-foreground print:text-black">{employeeReport.employee.employee_code}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">Designation</div>
+                                            <div className="font-bold text-foreground print:text-black">{employeeReport.employee.designation}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">Branch</div>
+                                            <div className="font-bold text-foreground print:text-black">{employeeReport.employee.branch_name}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                            <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                                <tr>
+                                                    <th className="px-3 py-2.5">Work Type</th>
+                                                    <th className="px-3 py-2.5">Source</th>
+                                                    <th className="px-3 py-2.5 text-right">Submissions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border print:divide-black">
+                                                {employeeReport.by_type.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={3} className="p-6 text-center text-muted-foreground">
+                                                            No work in this date range.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    employeeReport.by_type.map((item) => (
+                                                        <tr key={`${item.source}-${item.work_type}`}>
+                                                            <td className="px-3 py-2 font-bold text-foreground">{item.work_type}</td>
+                                                            <td className="px-3 py-2 text-foreground">{item.source}</td>
+                                                            <td className="px-3 py-2 text-right font-bold text-foreground">{item.count}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                            <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                                <tr>
+                                                    <th className="px-3 py-2.5">#</th>
+                                                    <th className="px-3 py-2.5">Date</th>
+                                                    <th className="px-3 py-2.5">Work Type</th>
+                                                    <th className="px-3 py-2.5">Location</th>
+                                                    <th className="px-3 py-2.5">Quantity</th>
+                                                    <th className="px-3 py-2.5 text-right">Fee</th>
+                                                    <th className="px-3 py-2.5">Description</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border print:divide-black">
+                                                {employeeReport.submissions.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                                                            No submissions found for this employee in the selected date range.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    employeeReport.submissions.map((row, idx) => (
+                                                        <tr key={`${row.date}-${row.source}-${idx}`} className="hover:bg-muted/15">
+                                                            <td className="px-3 py-2 font-bold text-muted-foreground">{idx + 1}</td>
+                                                            <td className="px-3 py-2 whitespace-nowrap">{formatDate(row.date)}</td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="font-bold text-foreground">{row.work_type}</div>
+                                                                <div className="text-[10px] text-muted-foreground print:text-black">{row.source}</div>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-foreground">{row.location}</td>
+                                                            <td className="px-3 py-2 text-foreground">{row.quantity}</td>
+                                                            <td className="px-3 py-2 text-right font-bold text-foreground">
+                                                                {row.fee === null ? '—' : `৳${Number(row.fee).toFixed(2)}`}
+                                                            </td>
+                                                            <td className="px-3 py-2 max-w-xs text-foreground">{row.description}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'illness' && illnessReport && (
+                        <div className="space-y-4 p-3 print:space-y-3 print:p-0">
+                            <p className="text-[11px] text-muted-foreground print:text-black">
+                                খানার সংখ্যা মানে যে খানায় এই অবস্থা পাওয়া গেছে। বন্ধনীর সংখ্যা মানে নিয়মিত ওষুধ খাচ্ছেন। ডায়াবেটিস পরীক্ষা, সাধারণ অসুস্থতা এবং স্ট্যাটিক ক্লিনিক জনসংখ্যা।
+                            </p>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-2 py-2">Branch</th>
+                                            {CHRONIC_COLUMNS.map((column) => (
+                                                <th key={column.key} className="px-2 py-2 text-right">{column.label}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {illnessReport.branches.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={9} className="p-6 text-center text-muted-foreground">No household disease records in this range.</td>
+                                            </tr>
+                                        ) : (
+                                            illnessReport.branches.map((branch) => (
+                                                <tr key={`chronic-${branch.branch_id}`}>
+                                                    <td className="px-2 py-2 font-bold text-foreground">{branch.branch_name}</td>
+                                                    {CHRONIC_COLUMNS.map((column) => (
+                                                        <td key={column.key} className="px-2 py-2 text-right text-foreground">
+                                                            {branch[column.key]} ({branch[column.med]})
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-2 py-2">Branch</th>
+                                            <th className="px-2 py-2 text-right">গর্ভবতী</th>
+                                            <th className="px-2 py-2 text-right">ANC</th>
+                                            <th className="px-2 py-2 text-right">TT</th>
+                                            <th className="px-2 py-2 text-right">প্রসব</th>
+                                            <th className="px-2 py-2 text-right">PNC</th>
+                                            <th className="px-2 py-2 text-right">স্টান্টিং</th>
+                                            <th className="px-2 py-2 text-right">ওয়েস্টিং</th>
+                                            <th className="px-2 py-2 text-right">আন্ডারওয়েট</th>
+                                            <th className="px-2 py-2 text-right">প্রতিবন্ধী</th>
+                                            <th className="px-2 py-2 text-right">সাধারণ অসুস্থ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {illnessReport.branches.map((branch) => (
+                                            <tr key={`maternal-${branch.branch_id}`}>
+                                                <td className="px-2 py-2 font-bold text-foreground">{branch.branch_name}</td>
+                                                <td className="px-2 py-2 text-right">{branch.pregnant}</td>
+                                                <td className="px-2 py-2 text-right">{branch.anc}</td>
+                                                <td className="px-2 py-2 text-right">{branch.tt}</td>
+                                                <td className="px-2 py-2 text-right">{branch.delivered}</td>
+                                                <td className="px-2 py-2 text-right">{branch.pnc}</td>
+                                                <td className="px-2 py-2 text-right">{branch.stunting}</td>
+                                                <td className="px-2 py-2 text-right">{branch.wasting}</td>
+                                                <td className="px-2 py-2 text-right">{branch.underweight}</td>
+                                                <td className="px-2 py-2 text-right">{branch.disabled}</td>
+                                                <td className="px-2 py-2 text-right">{branch.general_illness} ({branch.general_treated})</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-3 py-2.5">Branch</th>
+                                            <th className="px-3 py-2.5 text-right">ডায়াবেটিস পরীক্ষা</th>
+                                            <th className="px-3 py-2.5 text-right">সদস্য</th>
+                                            <th className="px-3 py-2.5 text-right">অ-সদস্য</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {illnessReport.branches.map((branch) => (
+                                            <tr key={`diabetes-${branch.branch_id}`}>
+                                                <td className="px-3 py-2 font-bold text-foreground">{branch.branch_name}</td>
+                                                <td className="px-3 py-2 text-right font-bold">{branch.diabetes_tests}</td>
+                                                <td className="px-3 py-2 text-right">{branch.diabetes_tests_member}</td>
+                                                <td className="px-3 py-2 text-right">{branch.diabetes_tests_non_member}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-3 py-2.5">স্ট্যাটিক ক্লিনিকের রোগ</th>
+                                            <th className="px-3 py-2.5">Branch</th>
+                                            <th className="px-3 py-2.5 text-right">রোগী</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {illnessReport.static_diseases.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3} className="p-6 text-center text-muted-foreground">No static clinic disease names in this range.</td>
+                                            </tr>
+                                        ) : (
+                                            illnessReport.static_diseases.map((item) => (
+                                                <tr key={`${item.branch_name}-${item.disease}`}>
+                                                    <td className="px-3 py-2 font-bold text-foreground">{item.disease}</td>
+                                                    <td className="px-3 py-2 text-foreground">{item.branch_name}</td>
+                                                    <td className="px-3 py-2 text-right font-bold">{item.patients}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* OFFICIAL WORD DOCUMENT / INSTITUTIONAL 4-COLUMN SIGNATURE FOOTER */}
-                <div className="hidden print:grid grid-cols-4 gap-6 pt-16 text-center text-[9pt] border-t-2 border-black mt-12 text-black">
+                <div className="print-signature hidden grid-cols-4 gap-6 pt-16 text-center text-[9pt] border-t-2 border-black mt-12 text-black">
                     <div>
                         <div className="border-t border-black pt-1 font-bold">Field Paramedic / Worker</div>
                         <div className="text-[8pt] text-gray-600">Signature & Date</div>
@@ -1090,6 +1651,7 @@ export default function ReportsIndex({
                         <div className="text-[8pt] text-gray-600">Approval & Seal</div>
                     </div>
                 </div>
+            </div>
             </div>
         </>
     );
