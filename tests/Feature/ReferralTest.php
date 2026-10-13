@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Branch;
+use App\Models\FollowUp;
 use App\Models\Referral;
 use App\Models\Role;
 use App\Models\User;
@@ -29,38 +30,8 @@ test('a worker referral stays credited to that worker', function () {
     expect($referral)->not->toBeNull()
         ->and($referral->referred_by)->toBe($worker->id)
         ->and($referral->branch_id)->toBe($branch->id)
-        ->and($referral->status)->toBe(Referral::STATUS_PENDING);
-});
-
-test('hospital staff record arrival without changing who referred', function () {
-    $workerRole = Role::query()->firstOrCreate(['slug' => 'worker'], ['name' => 'Worker']);
-    $hospitalRole = Role::query()->firstOrCreate(['slug' => 'hospital'], ['name' => 'Hospital']);
-    $branch = Branch::query()->firstOrCreate(['name' => 'Hospital Branch', 'branch_code' => 'RF-02', 'is_active' => true]);
-    $worker = User::factory()->create(['role_id' => $workerRole->id, 'branch_id' => $branch->id]);
-    $hospital = User::factory()->create(['role_id' => $hospitalRole->id]);
-
-    $referral = Referral::query()->create([
-        'referred_by' => $worker->id,
-        'branch_id' => $branch->id,
-        'created_by' => $worker->id,
-        'member_name' => 'করিম উদ্দিন',
-        'reason' => 'চোখের সমস্যা',
-        'referral_date' => now()->toDateString(),
-        'status' => Referral::STATUS_PENDING,
-    ]);
-
-    $this->actingAs($hospital)->put(route('referrals.update', $referral), [
-        'status' => Referral::STATUS_ARRIVED,
-        'hospital_notes' => 'বিকেলের সেশনে এসেছেন',
-        'referred_by' => $hospital->id,
-    ])->assertRedirect();
-
-    $referral->refresh();
-    expect($referral->status)->toBe(Referral::STATUS_ARRIVED)
-        ->and($referral->referred_by)->toBe($worker->id)
-        ->and($referral->recorded_by)->toBe($hospital->id)
-        ->and($referral->arrived_at)->not->toBeNull()
-        ->and($referral->hospital_notes)->toBe('বিকেলের সেশনে এসেছেন');
+        ->and($referral->status)->toBe(Referral::STATUS_PENDING)
+        ->and(FollowUp::query()->count())->toBe(0);
 });
 
 test('hospital walk-in referrals require the referring employee', function () {
@@ -104,7 +75,7 @@ test('referral report counts by referring employee inside the date range', funct
         'member_name' => 'আজকের সদস্য',
         'reason' => 'জ্বর',
         'referral_date' => now()->toDateString(),
-        'status' => Referral::STATUS_ARRIVED,
+        'status' => Referral::STATUS_WENT,
     ]);
     Referral::query()->create([
         'referred_by' => $second->id,
@@ -120,7 +91,7 @@ test('referral report counts by referring employee inside the date range', funct
         'member_name' => 'গতকালের সদস্য',
         'reason' => 'পুরনো',
         'referral_date' => now()->subDay()->toDateString(),
-        'status' => Referral::STATUS_ARRIVED,
+        'status' => Referral::STATUS_WENT,
     ]);
 
     $response = $this->actingAs($admin)->getJson(route('reports.index', [
@@ -131,10 +102,23 @@ test('referral report counts by referring employee inside the date range', funct
 
     $response->assertOk();
     expect($response->json('referralReport.summary.total'))->toBe(2)
-        ->and($response->json('referralReport.summary.arrived'))->toBe(1)
+        ->and($response->json('referralReport.summary.went'))->toBe(1)
         ->and($response->json('referralReport.summary.pending'))->toBe(1)
         ->and(collect($response->json('referralReport.employees'))->pluck('user_id')->all())
         ->toEqualCanonicalizing([$first->id, $second->id]);
+
+    $filtered = $this->actingAs($admin)->getJson(route('reports.index', [
+        'report_type' => 'referral',
+        'start_date' => now()->toDateString(),
+        'end_date' => now()->toDateString(),
+        'status' => Referral::STATUS_PENDING,
+    ]));
+
+    $filtered->assertOk();
+    expect($filtered->json('referralReport.summary.total'))->toBe(2)
+        ->and($filtered->json('referralReport.members'))->toHaveCount(1)
+        ->and($filtered->json('referralReport.members.0.member_name'))->toBe('আরেক সদস্য')
+        ->and($filtered->json('referralReport.members.0.status'))->toBe(Referral::STATUS_PENDING);
 });
 
 test('a branch manager only sees referrals from their own branch', function () {

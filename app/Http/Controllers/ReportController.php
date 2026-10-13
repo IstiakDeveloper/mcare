@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\DailyActivity;
 use App\Models\FeeCollection;
+use App\Models\FollowUp;
 use App\Models\HealthCamp;
 use App\Models\HealthCardDisburse;
 use App\Models\Referral;
@@ -305,6 +306,10 @@ class ReportController extends Controller
             ? $this->buildReferralReport($user, $request, $startDate, $endDate)
             : null;
 
+        $followUpReport = $reportType === 'followup'
+            ? $this->buildFollowUpReport($user, $request, $startDate, $endDate)
+            : null;
+
         // Summary Aggregates
         $summary = [
             'total_activities' => $activities->count(),
@@ -324,6 +329,8 @@ class ReportController extends Controller
                 'branch_id' => $selectedBranchId ? (string) $selectedBranchId : 'all',
                 'user_id' => $selectedUserId ? (string) $selectedUserId : 'all',
                 'report_type' => $reportType,
+                'status' => $this->reportStatusFilter($request),
+                'followup_type' => $this->reportFollowUpTypeFilter($request),
             ],
             'summary' => $summary,
             'activities' => $activities,
@@ -336,6 +343,7 @@ class ReportController extends Controller
             'employeeReport' => $employeeReport,
             'illnessReport' => $illnessReport,
             'referralReport' => $referralReport,
+            'followUpReport' => $followUpReport,
             'branches' => $branches,
             'officers' => $officers,
             'today' => $today,
@@ -358,15 +366,15 @@ class ReportController extends Controller
 
     /**
      * @return array{
-     *     summary: array{total: int, pending: int, arrived: int, not_arrived: int},
-     *     employees: list<array{user_id: int, name: string, employee_code: string, designation: string, branch_name: string, referred_count: int, arrived_count: int, pending_count: int, not_arrived_count: int}>,
-     *     members: list<array{id: int, referral_date: string, member_name: string, member_code: string, phone: string, village_or_samity: string, reason: string, status: string, employee_name: string, branch_name: string}>
+     *     summary: array{total: int, pending: int, went: int, did_not_go: int},
+     *     employees: list<array{user_id: int, name: string, employee_code: string, designation: string, branch_name: string, referred_count: int, went_count: int, pending_count: int, did_not_go_count: int}>,
+     *     members: list<array{id: int, referral_date: string, member_name: string, member_code: string, phone: string, village_or_samity: string, reason: string, status: string, medicines: string, treatment: string, employee_name: string, branch_name: string}>
      * }
      */
     private function buildReferralReport(User $viewer, Request $request, string $startDate, string $endDate): array
     {
         $query = Referral::query()
-            ->with(['referredBy.branch:id,name', 'branch:id,name'])
+            ->with(['referredBy.branch:id,name', 'branch:id,name', 'followUp:id,referral_id,medicines,treatment,outcome'])
             ->whereDate('referral_date', '>=', $startDate)
             ->whereDate('referral_date', '<=', $endDate);
 
@@ -400,17 +408,17 @@ class ReportController extends Controller
                     'designation' => $referral->referredBy?->designation ?: '—',
                     'branch_name' => $referral->branch?->name ?: $referral->referredBy?->branch?->name ?: '—',
                     'referred_count' => 0,
-                    'arrived_count' => 0,
+                    'went_count' => 0,
                     'pending_count' => 0,
-                    'not_arrived_count' => 0,
+                    'did_not_go_count' => 0,
                 ];
             }
 
             $employees[$employeeId]['referred_count']++;
-            if ($referral->status === Referral::STATUS_ARRIVED) {
-                $employees[$employeeId]['arrived_count']++;
-            } elseif ($referral->status === Referral::STATUS_NOT_ARRIVED) {
-                $employees[$employeeId]['not_arrived_count']++;
+            if ($referral->status === Referral::STATUS_WENT) {
+                $employees[$employeeId]['went_count']++;
+            } elseif ($referral->status === Referral::STATUS_DID_NOT_GO) {
+                $employees[$employeeId]['did_not_go_count']++;
             } else {
                 $employees[$employeeId]['pending_count']++;
             }
@@ -419,7 +427,12 @@ class ReportController extends Controller
         $employeeRows = array_values($employees);
         usort($employeeRows, fn (array $a, array $b): int => $b['referred_count'] <=> $a['referred_count']);
 
-        $members = $referrals->map(fn (Referral $referral) => [
+        $status = $this->reportStatusFilter($request);
+        $listed = $status === 'all'
+            ? $referrals
+            : $referrals->where('status', $status)->values();
+
+        $members = $listed->map(fn (Referral $referral) => [
             'id' => $referral->id,
             'referral_date' => $this->reportDate($referral->referral_date),
             'member_name' => $referral->member_name,
@@ -428,6 +441,8 @@ class ReportController extends Controller
             'village_or_samity' => $referral->village_or_samity ?: '—',
             'reason' => $referral->reason,
             'status' => $referral->status,
+            'medicines' => $referral->followUp?->medicines ?: '—',
+            'treatment' => $referral->followUp?->treatment ?: '—',
             'employee_name' => $referral->referredBy?->name ?: '—',
             'branch_name' => $referral->branch?->name ?: '—',
         ])->values()->all();
@@ -436,12 +451,91 @@ class ReportController extends Controller
             'summary' => [
                 'total' => $referrals->count(),
                 'pending' => $referrals->where('status', Referral::STATUS_PENDING)->count(),
-                'arrived' => $referrals->where('status', Referral::STATUS_ARRIVED)->count(),
-                'not_arrived' => $referrals->where('status', Referral::STATUS_NOT_ARRIVED)->count(),
+                'went' => $referrals->where('status', Referral::STATUS_WENT)->count(),
+                'did_not_go' => $referrals->where('status', Referral::STATUS_DID_NOT_GO)->count(),
             ],
             'employees' => $employeeRows,
             'members' => $members,
         ];
+    }
+
+    /**
+     * @return array{
+     *     summary: array{total: int, referred: int, custom: int, went: int, did_not_go: int},
+     *     rows: list<array{id: int, follow_up_date: string, type: string, member_name: string, phone: string, village_or_samity: string, previous_treatment: string, outcome: string, medicines: string, treatment: string, employee_name: string, branch_name: string}>
+     * }
+     */
+    private function buildFollowUpReport(User $viewer, Request $request, string $startDate, string $endDate): array
+    {
+        $query = FollowUp::query()
+            ->with(['user:id,name', 'branch:id,name'])
+            ->whereDate('follow_up_date', '>=', $startDate)
+            ->whereDate('follow_up_date', '<=', $endDate);
+
+        $requestedBranchId = $request->filled('branch_id') && $request->input('branch_id') !== 'all'
+            ? $request->integer('branch_id')
+            : null;
+        $requestedUserId = $request->filled('user_id') && $request->input('user_id') !== 'all'
+            ? $request->integer('user_id')
+            : null;
+
+        if ($viewer->isAdmin() || $viewer->isHospital()) {
+            $query->when($requestedBranchId, fn ($inner) => $inner->where('branch_id', $requestedBranchId))
+                ->when($requestedUserId, fn ($inner) => $inner->where('user_id', $requestedUserId));
+        } elseif ($viewer->isBranchManager()) {
+            $query->where('branch_id', $viewer->branch_id)
+                ->when($requestedUserId, fn ($inner) => $inner->where('user_id', $requestedUserId));
+        } else {
+            $query->where('user_id', $viewer->id);
+        }
+
+        $followUps = $query->orderByDesc('follow_up_date')->orderByDesc('id')->get();
+        $type = $this->reportFollowUpTypeFilter($request);
+        $status = $this->reportStatusFilter($request);
+        $listed = $followUps
+            ->when($type !== 'all', fn ($rows) => $rows->where('type', $type))
+            ->when($status === FollowUp::OUTCOME_WENT || $status === FollowUp::OUTCOME_DID_NOT_GO, fn ($rows) => $rows->where('outcome', $status))
+            ->values();
+
+        return [
+            'summary' => [
+                'total' => $followUps->count(),
+                'referred' => $followUps->where('type', FollowUp::TYPE_REFERRED)->count(),
+                'custom' => $followUps->where('type', FollowUp::TYPE_CUSTOM)->count(),
+                'went' => $followUps->where('outcome', FollowUp::OUTCOME_WENT)->count(),
+                'did_not_go' => $followUps->where('outcome', FollowUp::OUTCOME_DID_NOT_GO)->count(),
+            ],
+            'rows' => $listed->map(fn (FollowUp $followUp) => [
+                'id' => $followUp->id,
+                'follow_up_date' => $this->reportDate($followUp->follow_up_date),
+                'type' => $followUp->type,
+                'member_name' => $followUp->member_name,
+                'phone' => $followUp->phone ?: '—',
+                'village_or_samity' => $followUp->village_or_samity ?: '—',
+                'previous_treatment' => $followUp->previous_treatment ?: '—',
+                'outcome' => $followUp->outcome ?: '—',
+                'medicines' => $followUp->medicines ?: '—',
+                'treatment' => $followUp->treatment ?: '—',
+                'employee_name' => $followUp->user?->name ?: '—',
+                'branch_name' => $followUp->branch?->name ?: '—',
+            ])->all(),
+        ];
+    }
+
+    private function reportStatusFilter(Request $request): string
+    {
+        $status = $request->string('status')->toString();
+
+        return in_array($status, [Referral::STATUS_PENDING, Referral::STATUS_WENT, Referral::STATUS_DID_NOT_GO], true)
+            ? $status
+            : 'all';
+    }
+
+    private function reportFollowUpTypeFilter(Request $request): string
+    {
+        $type = $request->string('followup_type')->toString();
+
+        return in_array($type, [FollowUp::TYPE_REFERRED, FollowUp::TYPE_CUSTOM], true) ? $type : 'all';
     }
 
     /**

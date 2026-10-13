@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CheckCircle2, Clock, Plus, Search, XCircle } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,7 @@ type ReferralRow = {
     village_or_samity: string | null;
     reason: string;
     referral_date: string;
-    status: 'pending' | 'arrived' | 'not_arrived';
-    hospital_notes: string | null;
+    status: 'pending' | 'went' | 'did_not_go';
     referred_by?: {
         id: number;
         name: string;
@@ -47,7 +46,7 @@ type EmployeeOption = {
 
 type Props = {
     referrals: Paginated<ReferralRow>;
-    stats: { total: number; pending: number; arrived: number; not_arrived: number };
+    stats: { total: number; pending: number; went: number; did_not_go: number };
     filters: {
         search: string;
         status: string;
@@ -58,7 +57,7 @@ type Props = {
     branches: { id: number; name: string }[];
     employees: EmployeeOption[];
     canChooseEmployee: boolean;
-    canRecordArrival: boolean;
+    canFollowUp: boolean;
     today: string;
 };
 
@@ -69,14 +68,14 @@ const STATUS_META = {
         badge: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300',
         button: 'border-amber-500/40 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-200',
     },
-    arrived: {
-        label: 'এসেছে',
+    went: {
+        label: 'গিয়েছে',
         icon: CheckCircle2,
         badge: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
         button: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/20 dark:text-emerald-200',
     },
-    not_arrived: {
-        label: 'আসেনি',
+    did_not_go: {
+        label: 'যায়নি',
         icon: XCircle,
         badge: 'bg-rose-500/15 text-rose-700 border-rose-500/30 dark:text-rose-300',
         button: 'border-rose-500/40 bg-rose-500/10 text-rose-800 hover:bg-rose-500/20 dark:text-rose-200',
@@ -104,7 +103,7 @@ export default function ReferralsIndex({
     branches,
     employees,
     canChooseEmployee,
-    canRecordArrival,
+    canFollowUp,
     today,
 }: Props) {
     const [createOpen, setCreateOpen] = useState(false);
@@ -114,8 +113,6 @@ export default function ReferralsIndex({
     const [endDate, setEndDate] = useState(filters.end_date || '');
     const [branchId, setBranchId] = useState(filters.branch_id || 'all');
     const [employeeSearch, setEmployeeSearch] = useState('');
-    const [statusTarget, setStatusTarget] = useState<ReferralRow | null>(null);
-    const [nextStatus, setNextStatus] = useState<'pending' | 'arrived' | 'not_arrived'>('arrived');
 
     const form = useForm({
         referred_by: '',
@@ -127,11 +124,6 @@ export default function ReferralsIndex({
         village_or_samity: '',
         reason: '',
         referral_date: today,
-    });
-
-    const statusForm = useForm({
-        status: 'arrived',
-        hospital_notes: '',
     });
 
     const applyFilters = () => {
@@ -171,30 +163,6 @@ export default function ReferralsIndex({
         });
     };
 
-    const openStatus = (row: ReferralRow, value: ReferralStatus) => {
-        if (row.status === value) {
-            return;
-        }
-        setStatusTarget(row);
-        setNextStatus(value);
-        statusForm.setData({
-            status: value,
-            hospital_notes: row.hospital_notes || '',
-        });
-    };
-
-    const submitStatus = (event: FormEvent) => {
-        event.preventDefault();
-        if (!statusTarget) {
-            return;
-        }
-
-        statusForm.put(`/referrals/${statusTarget.id}`, {
-            preserveScroll: true,
-            onSuccess: () => setStatusTarget(null),
-        });
-    };
-
     return (
         <>
             <Head title="Referrals — M Care" />
@@ -203,7 +171,7 @@ export default function ReferralsIndex({
                     <div>
                         <h1 className="text-xl font-bold text-foreground">রেফারেল</h1>
                         <p className="text-xs text-muted-foreground">
-                            মাঠকর্মী সদস্য রেফার করেন। হাসপাতাল রেকর্ড করে সদস্য এসেছেন কি না। ক্রেডিট রেফার করা কর্মীর।
+                            রেফার করলে অপেক্ষমাণ থাকে। পরে Follow Up থেকে লিখবেন গিয়েছেন কি না, গেলে কোন ওষুধ ও চিকিৎসা দেওয়া হয়েছে।
                         </p>
                     </div>
                     <Button type="button" onClick={() => setCreateOpen(true)} className="rounded-xl">
@@ -216,8 +184,8 @@ export default function ReferralsIndex({
                     {[
                         { label: 'মোট রেফার', value: stats.total, icon: null, tone: 'text-foreground' },
                         { label: STATUS_META.pending.label, value: stats.pending, icon: STATUS_META.pending.icon, tone: 'text-amber-700 dark:text-amber-300' },
-                        { label: STATUS_META.arrived.label, value: stats.arrived, icon: STATUS_META.arrived.icon, tone: 'text-emerald-700 dark:text-emerald-300' },
-                        { label: STATUS_META.not_arrived.label, value: stats.not_arrived, icon: STATUS_META.not_arrived.icon, tone: 'text-rose-700 dark:text-rose-300' },
+                        { label: STATUS_META.went.label, value: stats.went, icon: STATUS_META.went.icon, tone: 'text-emerald-700 dark:text-emerald-300' },
+                        { label: STATUS_META.did_not_go.label, value: stats.did_not_go, icon: STATUS_META.did_not_go.icon, tone: 'text-rose-700 dark:text-rose-300' },
                     ].map((item) => {
                         const Icon = item.icon;
 
@@ -246,8 +214,8 @@ export default function ReferralsIndex({
                     <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-9 rounded-xl border bg-background px-2 text-xs">
                         <option value="all">সব স্ট্যাটাস</option>
                         <option value="pending">অপেক্ষমাণ</option>
-                        <option value="arrived">এসেছে</option>
-                        <option value="not_arrived">আসেনি</option>
+                        <option value="went">গিয়েছে</option>
+                        <option value="did_not_go">যায়নি</option>
                     </select>
                     <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-9 rounded-xl text-xs" />
                     <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-9 rounded-xl text-xs" />
@@ -276,13 +244,13 @@ export default function ReferralsIndex({
                                     <th className="px-3 py-2">কারণ</th>
                                     <th className="px-3 py-2">রেফার করেছেন</th>
                                     <th className="px-3 py-2">স্ট্যাটাস</th>
-                                    {canRecordArrival ? <th className="px-3 py-2 text-right">হাসপাতাল</th> : null}
+                                    {canFollowUp ? <th className="px-3 py-2 text-right">ফলোআপ</th> : null}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
                                 {referrals.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={canRecordArrival ? 6 : 5} className="p-8 text-center text-muted-foreground">
+                                        <td colSpan={canFollowUp ? 6 : 5} className="p-8 text-center text-muted-foreground">
                                             এই ফিল্টারে কোনো রেফারেল নেই।
                                         </td>
                                     </tr>
@@ -306,30 +274,15 @@ export default function ReferralsIndex({
                                             <td className="px-3 py-2">
                                                 <StatusBadge status={row.status} />
                                             </td>
-                                            {canRecordArrival ? (
+                                            {canFollowUp ? (
                                                 <td className="px-3 py-2 text-right">
-                                                    <div className="flex justify-end gap-1">
-                                                        {(Object.keys(STATUS_META) as ReferralStatus[])
-                                                            .filter((status) => status !== row.status)
-                                                            .map((status) => {
-                                                                const meta = STATUS_META[status];
-                                                                const Icon = meta.icon;
-
-                                                                return (
-                                                                    <Button
-                                                                        key={status}
-                                                                        type="button"
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className={`h-7 rounded-lg text-[11px] ${meta.button}`}
-                                                                        onClick={() => openStatus(row, status)}
-                                                                    >
-                                                                        <Icon className="size-3.5" />
-                                                                        {meta.label}
-                                                                    </Button>
-                                                                );
-                                                            })}
-                                                    </div>
+                                                    {row.status === 'pending' ? (
+                                                        <Button asChild type="button" size="sm" variant="outline" className="h-7 rounded-lg text-[11px]">
+                                                            <Link href={`/follow-ups?referral=${row.id}`}>Follow Up</Link>
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-[11px] text-muted-foreground">হয়ে গেছে</span>
+                                                    )}
                                                 </td>
                                             ) : null}
                                         </tr>
@@ -439,25 +392,6 @@ export default function ReferralsIndex({
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={statusTarget !== null} onOpenChange={(open) => !open && setStatusTarget(null)}>
-                <DialogContent className="w-[95vw] rounded-3xl p-4 sm:max-w-md sm:p-5">
-                    <DialogHeader className="text-left">
-                        <DialogTitle>
-                            <StatusBadge status={nextStatus} />
-                        </DialogTitle>
-                        <DialogDescription>
-                            {statusTarget?.member_name} — রেফার করেছেন {statusTarget?.referred_by?.name || '—'}. এই নাম বদলাবে না।
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={submitStatus} className="space-y-3 pt-2">
-                        <div className="space-y-1.5">
-                            <Label>হাসপাতালের নোট</Label>
-                            <Textarea value={statusForm.data.hospital_notes} onChange={(event) => statusForm.setData('hospital_notes', event.target.value)} />
-                        </div>
-                        <Button type="submit" disabled={statusForm.processing} className="rounded-xl">রেকর্ড করুন</Button>
-                    </form>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

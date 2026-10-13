@@ -6,6 +6,7 @@ use App\Http\Controllers\AttachmentUploadController;
 use App\Http\Controllers\DailyActivityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeeCollectionController;
+use App\Http\Controllers\FollowUpController;
 use App\Http\Controllers\HealthCampController;
 use App\Http\Controllers\HealthCardDisburseController;
 use App\Http\Controllers\ReferralController;
@@ -69,7 +70,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('referrals', [ReferralController::class, 'index'])->name('referrals.index');
     Route::post('referrals', [ReferralController::class, 'store'])->name('referrals.store');
-    Route::put('referrals/{referral}', [ReferralController::class, 'update'])->name('referrals.update');
+
+    Route::get('follow-ups', [FollowUpController::class, 'index'])->name('follow-ups.index');
+    Route::post('follow-ups/referred', [FollowUpController::class, 'storeReferred'])->name('follow-ups.referred');
+    Route::post('follow-ups', [FollowUpController::class, 'storeCustom'])->name('follow-ups.store');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');

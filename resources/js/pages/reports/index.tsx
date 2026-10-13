@@ -230,9 +230,9 @@ type ReferralEmployeeRow = {
     designation: string;
     branch_name: string;
     referred_count: number;
-    arrived_count: number;
+    went_count: number;
     pending_count: number;
-    not_arrived_count: number;
+    did_not_go_count: number;
 };
 
 type ReferralMemberRow = {
@@ -244,30 +244,59 @@ type ReferralMemberRow = {
     village_or_samity: string;
     reason: string;
     status: string;
+    medicines: string;
+    treatment: string;
     employee_name: string;
     branch_name: string;
 };
 
+type FollowUpReportRow = {
+    id: number;
+    follow_up_date: string;
+    type: string;
+    member_name: string;
+    phone: string;
+    village_or_samity: string;
+    previous_treatment: string;
+    outcome: string;
+    medicines: string;
+    treatment: string;
+    employee_name: string;
+    branch_name: string;
+};
+
+type FollowUpReport = {
+    summary: { total: number; referred: number; custom: number; went: number; did_not_go: number };
+    rows: FollowUpReportRow[];
+};
+
 type ReferralReport = {
-    summary: { total: number; pending: number; arrived: number; not_arrived: number };
+    summary: { total: number; pending: number; went: number; did_not_go: number };
     employees: ReferralEmployeeRow[];
     members: ReferralMemberRow[];
 };
 
 const REFERRAL_STATUS_LABELS: Record<string, string> = {
     pending: 'অপেক্ষমাণ',
-    arrived: 'এসেছে',
-    not_arrived: 'আসেনি',
+    went: 'গিয়েছে',
+    did_not_go: 'যায়নি',
+};
+
+const FOLLOW_UP_TYPE_LABELS: Record<string, string> = {
+    referred: 'Referred Follow Up',
+    custom: 'Custom Follow Up',
 };
 
 type Props = {
-    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers' | 'employee' | 'illness' | 'referral';
+    reportType: 'activities' | 'households' | 'fee_collections' | 'patients' | 'branches' | 'officers' | 'employee' | 'illness' | 'referral' | 'followup';
     filters: {
         start_date: string;
         end_date: string;
         branch_id: string;
         user_id?: string;
         report_type: string;
+        status?: string;
+        followup_type?: string;
     };
     summary: {
         total_activities: number;
@@ -288,6 +317,7 @@ type Props = {
     employeeReport?: EmployeeReport | null;
     illnessReport?: IllnessReport | null;
     referralReport?: ReferralReport | null;
+    followUpReport?: FollowUpReport | null;
     branches: BranchOption[];
     officers?: OfficerOption[];
     today: string;
@@ -440,6 +470,7 @@ const REPORT_TITLES: Record<string, string> = {
     employee: 'Employee Work Report',
     illness: 'Illness & Disease Report',
     referral: 'Referral Report',
+    followup: 'Follow-up Report',
 };
 
 export default function ReportsIndex({
@@ -456,6 +487,7 @@ export default function ReportsIndex({
     employeeReport = null,
     illnessReport = null,
     referralReport = null,
+    followUpReport = null,
     branches = [],
     officers = [],
     today,
@@ -466,6 +498,8 @@ export default function ReportsIndex({
     const [endDate, setEndDate] = useState(filters.end_date || today);
     const [branchId, setBranchId] = useState(filters.branch_id || 'all');
     const [userId, setUserId] = useState(filters.user_id || 'all');
+    const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
+    const [followupType, setFollowupType] = useState(filters.followup_type || 'all');
     const [officerSearch, setOfficerSearch] = useState('');
     const [openIllnessRows, setOpenIllnessRows] = useState<Record<string, boolean>>({});
 
@@ -474,7 +508,9 @@ export default function ReportsIndex({
         setEndDate(filters.end_date || today);
         setBranchId(filters.branch_id || 'all');
         setUserId(filters.user_id || 'all');
-    }, [filters.start_date, filters.end_date, filters.branch_id, filters.user_id, today]);
+        setStatusFilter(filters.status || 'all');
+        setFollowupType(filters.followup_type || 'all');
+    }, [filters.start_date, filters.end_date, filters.branch_id, filters.user_id, filters.status, filters.followup_type, today]);
 
     const isPrivileged = Boolean(user.is_admin || user.is_branch_manager || user.role?.slug === 'admin' || user.role?.slug === 'branch-manager');
 
@@ -499,7 +535,7 @@ export default function ReportsIndex({
             .some((value) => String(value).toLowerCase().includes(query));
     });
 
-    const applyFilter = (newTab?: string, newStart?: string, newEnd?: string, newBranch?: string, newUser?: string) => {
+    const applyFilter = (newTab?: string, newStart?: string, newEnd?: string, newBranch?: string, newUser?: string, newStatus?: string, newType?: string) => {
         const t = newTab ?? activeTab;
         const s = newStart ?? startDate;
         const e = newEnd ?? endDate;
@@ -514,6 +550,8 @@ export default function ReportsIndex({
                 end_date: e,
                 branch_id: b,
                 user_id: u,
+                status: newStatus ?? statusFilter,
+                followup_type: newType ?? followupType,
             },
             { preserveState: true, preserveScroll: true },
         );
@@ -734,11 +772,11 @@ export default function ReportsIndex({
             rows.push([]);
             rows.push(['Summary']);
             rows.push(['Total Referred', String(referralReport.summary.total)]);
-            rows.push(['Arrived', String(referralReport.summary.arrived)]);
+            rows.push(['Went', String(referralReport.summary.went)]);
             rows.push(['Pending', String(referralReport.summary.pending)]);
-            rows.push(['Not Arrived', String(referralReport.summary.not_arrived)]);
+            rows.push(['Did Not Go', String(referralReport.summary.did_not_go)]);
             rows.push([]);
-            rows.push(['Name', 'Code', 'Designation', 'Branch', 'Referred', 'Arrived', 'Pending', 'Not Arrived']);
+            rows.push(['Name', 'Code', 'Designation', 'Branch', 'Referred', 'Went', 'Pending', 'Did Not Go']);
             referralReport.employees.forEach((row) => {
                 rows.push([
                     row.name,
@@ -746,13 +784,13 @@ export default function ReportsIndex({
                     row.designation,
                     row.branch_name,
                     String(row.referred_count),
-                    String(row.arrived_count),
+                    String(row.went_count),
                     String(row.pending_count),
-                    String(row.not_arrived_count),
+                    String(row.did_not_go_count),
                 ]);
             });
             rows.push([]);
-            rows.push(['Date', 'Member', 'Code', 'Phone', 'Village / Samity', 'Reason', 'Status', 'Referred By', 'Branch']);
+            rows.push(['Date', 'Member', 'Code', 'Phone', 'Village / Samity', 'Reason', 'Status', 'Medicines', 'Treatment', 'Referred By', 'Branch']);
             referralReport.members.forEach((row) => {
                 rows.push([
                     row.referral_date,
@@ -762,6 +800,38 @@ export default function ReportsIndex({
                     row.village_or_samity,
                     row.reason,
                     REFERRAL_STATUS_LABELS[row.status] || row.status,
+                    row.medicines,
+                    row.treatment,
+                    row.employee_name,
+                    row.branch_name,
+                ]);
+            });
+        } else if (activeTab === 'followup' && followUpReport) {
+            filename = `Mcare_Followup_Report_${startDate}_to_${endDate}.csv`;
+            rows.push(['Follow-up Report']);
+            rows.push(['Period', `${startDate} to ${endDate}`]);
+            rows.push(['Branch', selectedBranchName]);
+            rows.push(['Employee', selectedOfficerName]);
+            rows.push([]);
+            rows.push(['Summary']);
+            rows.push(['Total', String(followUpReport.summary.total)]);
+            rows.push(['Referred Follow Up', String(followUpReport.summary.referred)]);
+            rows.push(['Custom Follow Up', String(followUpReport.summary.custom)]);
+            rows.push(['Went', String(followUpReport.summary.went)]);
+            rows.push(['Did Not Go', String(followUpReport.summary.did_not_go)]);
+            rows.push([]);
+            rows.push(['Date', 'Type', 'Member', 'Phone', 'Village / Samity', 'Previous Treatment', 'Outcome', 'Medicines', 'Treatment', 'Employee', 'Branch']);
+            followUpReport.rows.forEach((row) => {
+                rows.push([
+                    row.follow_up_date,
+                    FOLLOW_UP_TYPE_LABELS[row.type] || row.type,
+                    row.member_name,
+                    row.phone,
+                    row.village_or_samity,
+                    row.previous_treatment,
+                    REFERRAL_STATUS_LABELS[row.outcome] || row.outcome,
+                    row.medicines,
+                    row.treatment,
                     row.employee_name,
                     row.branch_name,
                 ]);
@@ -1141,13 +1211,47 @@ export default function ReportsIndex({
                     </div>
                 )}
 
+                {(activeTab === 'referral' || activeTab === 'followup') && (
+                    <div className="screen-only flex flex-wrap items-center gap-2">
+                        <select
+                            value={statusFilter}
+                            onChange={(event) => {
+                                const next = event.target.value;
+                                setStatusFilter(next);
+                                applyFilter(activeTab, startDate, endDate, branchId, userId, next, followupType);
+                            }}
+                            className="h-9 rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
+                        >
+                            <option value="all">সব স্ট্যাটাস</option>
+                            {activeTab === 'referral' ? <option value="pending">অপেক্ষমাণ</option> : null}
+                            <option value="went">গিয়েছে</option>
+                            <option value="did_not_go">যায়নি</option>
+                        </select>
+                        {activeTab === 'followup' ? (
+                            <select
+                                value={followupType}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    setFollowupType(next);
+                                    applyFilter(activeTab, startDate, endDate, branchId, userId, statusFilter, next);
+                                }}
+                                className="h-9 rounded-xl border border-input bg-background px-2.5 text-xs font-medium"
+                            >
+                                <option value="all">সব টাইপ</option>
+                                <option value="referred">Referred Follow Up</option>
+                                <option value="custom">Custom Follow Up</option>
+                            </select>
+                        ) : null}
+                    </div>
+                )}
+
                 {activeTab === 'referral' && referralReport && (
                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                         {[
                             { label: 'মোট রেফার', value: String(referralReport.summary.total) },
-                            { label: 'এসেছে', value: String(referralReport.summary.arrived) },
+                            { label: 'গিয়েছে', value: String(referralReport.summary.went) },
                             { label: 'অপেক্ষমাণ', value: String(referralReport.summary.pending) },
-                            { label: 'আসেনি', value: String(referralReport.summary.not_arrived) },
+                            { label: 'যায়নি', value: String(referralReport.summary.did_not_go) },
                         ].map((item) => (
                             <div key={item.label} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs print:border-black print:shadow-none">
                                 <span className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">
@@ -1161,7 +1265,28 @@ export default function ReportsIndex({
                     </div>
                 )}
 
-                {activeTab !== 'employee' && activeTab !== 'illness' && activeTab !== 'referral' && (
+                {activeTab === 'followup' && followUpReport && (
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+                        {[
+                            { label: 'মোট ফলোআপ', value: String(followUpReport.summary.total) },
+                            { label: 'Referred', value: String(followUpReport.summary.referred) },
+                            { label: 'Custom', value: String(followUpReport.summary.custom) },
+                            { label: 'গিয়েছে', value: String(followUpReport.summary.went) },
+                            { label: 'যায়নি', value: String(followUpReport.summary.did_not_go) },
+                        ].map((item) => (
+                            <div key={item.label} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs print:border-black print:shadow-none">
+                                <span className="text-[10px] font-semibold uppercase text-muted-foreground print:text-black">
+                                    {item.label}
+                                </span>
+                                <p className="mt-0.5 text-lg font-bold text-foreground print:text-black sm:text-xl">
+                                    {item.value}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {activeTab !== 'employee' && activeTab !== 'illness' && activeTab !== 'referral' && activeTab !== 'followup' && (
                 <div className="screen-only grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs">
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -1758,9 +1883,9 @@ export default function ReportsIndex({
                                             <th className="px-3 py-2.5">Designation</th>
                                             <th className="px-3 py-2.5">Branch</th>
                                             <th className="px-3 py-2.5 text-right">রেফার</th>
-                                            <th className="px-3 py-2.5 text-right">এসেছে</th>
+                                            <th className="px-3 py-2.5 text-right">গিয়েছে</th>
                                             <th className="px-3 py-2.5 text-right">অপেক্ষমাণ</th>
-                                            <th className="px-3 py-2.5 text-right">আসেনি</th>
+                                            <th className="px-3 py-2.5 text-right">যায়নি</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border print:divide-black">
@@ -1776,9 +1901,9 @@ export default function ReportsIndex({
                                                     <td className="px-3 py-2">{row.designation}</td>
                                                     <td className="px-3 py-2">{row.branch_name}</td>
                                                     <td className="px-3 py-2 text-right font-bold">{row.referred_count}</td>
-                                                    <td className="px-3 py-2 text-right">{row.arrived_count}</td>
+                                                    <td className="px-3 py-2 text-right">{row.went_count}</td>
                                                     <td className="px-3 py-2 text-right">{row.pending_count}</td>
-                                                    <td className="px-3 py-2 text-right">{row.not_arrived_count}</td>
+                                                    <td className="px-3 py-2 text-right">{row.did_not_go_count}</td>
                                                 </tr>
                                             ))
                                         )}
@@ -1797,6 +1922,8 @@ export default function ReportsIndex({
                                             <th className="px-3 py-2.5">গ্রাম / সমিতি</th>
                                             <th className="px-3 py-2.5">কারণ</th>
                                             <th className="px-3 py-2.5">স্ট্যাটাস</th>
+                                            <th className="px-3 py-2.5">ওষুধ</th>
+                                            <th className="px-3 py-2.5">চিকিৎসা</th>
                                             <th className="px-3 py-2.5">রেফার করেছেন</th>
                                             <th className="px-3 py-2.5">শাখা</th>
                                         </tr>
@@ -1804,7 +1931,7 @@ export default function ReportsIndex({
                                     <tbody className="divide-y divide-border print:divide-black">
                                         {referralReport.members.length === 0 ? (
                                             <tr>
-                                                <td colSpan={9} className="p-6 text-center text-muted-foreground">No referred members in this range.</td>
+                                                <td colSpan={11} className="p-6 text-center text-muted-foreground">No referred members in this range.</td>
                                             </tr>
                                         ) : (
                                             referralReport.members.map((row) => (
@@ -1816,6 +1943,54 @@ export default function ReportsIndex({
                                                     <td className="px-3 py-2">{row.village_or_samity}</td>
                                                     <td className="px-3 py-2">{row.reason}</td>
                                                     <td className="px-3 py-2">{REFERRAL_STATUS_LABELS[row.status] || row.status}</td>
+                                                    <td className="px-3 py-2">{row.medicines}</td>
+                                                    <td className="px-3 py-2">{row.treatment}</td>
+                                                    <td className="px-3 py-2">{row.employee_name}</td>
+                                                    <td className="px-3 py-2">{row.branch_name}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'followup' && followUpReport && (
+                        <div className="space-y-3 p-3 print:space-y-3 print:p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs print:text-[8.5pt]">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
+                                        <tr>
+                                            <th className="px-3 py-2.5">তারিখ</th>
+                                            <th className="px-3 py-2.5">টাইপ</th>
+                                            <th className="px-3 py-2.5">সদস্য</th>
+                                            <th className="px-3 py-2.5">ফলাফল</th>
+                                            <th className="px-3 py-2.5">আগের চিকিৎসা</th>
+                                            <th className="px-3 py-2.5">ওষুধ</th>
+                                            <th className="px-3 py-2.5">চিকিৎসা</th>
+                                            <th className="px-3 py-2.5">কর্মী</th>
+                                            <th className="px-3 py-2.5">শাখা</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border print:divide-black">
+                                        {followUpReport.rows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={9} className="p-6 text-center text-muted-foreground">No follow-ups in this range.</td>
+                                            </tr>
+                                        ) : (
+                                            followUpReport.rows.map((row) => (
+                                                <tr key={row.id}>
+                                                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(row.follow_up_date)}</td>
+                                                    <td className="px-3 py-2 font-semibold">{FOLLOW_UP_TYPE_LABELS[row.type] || row.type}</td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="font-bold text-foreground">{row.member_name}</div>
+                                                        <div className="text-[10px] text-muted-foreground print:text-black">{[row.phone, row.village_or_samity].filter((value) => value && value !== '—').join(' · ')}</div>
+                                                    </td>
+                                                    <td className="px-3 py-2">{REFERRAL_STATUS_LABELS[row.outcome] || row.outcome}</td>
+                                                    <td className="px-3 py-2">{row.previous_treatment}</td>
+                                                    <td className="px-3 py-2">{row.medicines}</td>
+                                                    <td className="px-3 py-2">{row.treatment}</td>
                                                     <td className="px-3 py-2">{row.employee_name}</td>
                                                     <td className="px-3 py-2">{row.branch_name}</td>
                                                 </tr>

@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -88,8 +87,8 @@ class ReferralController extends Controller
             'stats' => [
                 'total' => (clone $statsQuery)->count(),
                 'pending' => (clone $statsQuery)->where('status', Referral::STATUS_PENDING)->count(),
-                'arrived' => (clone $statsQuery)->where('status', Referral::STATUS_ARRIVED)->count(),
-                'not_arrived' => (clone $statsQuery)->where('status', Referral::STATUS_NOT_ARRIVED)->count(),
+                'went' => (clone $statsQuery)->where('status', Referral::STATUS_WENT)->count(),
+                'did_not_go' => (clone $statsQuery)->where('status', Referral::STATUS_DID_NOT_GO)->count(),
             ],
             'filters' => [
                 'search' => $request->string('search')->toString(),
@@ -101,7 +100,7 @@ class ReferralController extends Controller
             'branches' => $branches,
             'employees' => $employees,
             'canChooseEmployee' => $user->isAdmin() || $user->isHospital(),
-            'canRecordArrival' => $user->isAdmin() || $user->isHospital(),
+            'canFollowUp' => ! $user->isHospital(),
             'today' => Carbon::today()->toDateString(),
         ]);
     }
@@ -149,43 +148,6 @@ class ReferralController extends Controller
         ]);
 
         return back()->with('success', 'Referral saved.');
-    }
-
-    public function update(Request $request, Referral $referral): RedirectResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-        $user->loadMissing('role');
-
-        abort_unless($user->isAdmin() || $user->isHospital(), 403);
-
-        $validated = $request->validate([
-            'status' => ['required', Rule::in([
-                Referral::STATUS_PENDING,
-                Referral::STATUS_ARRIVED,
-                Referral::STATUS_NOT_ARRIVED,
-            ])],
-            'hospital_notes' => ['nullable', 'string', 'max:1000'],
-            'member_name' => ['sometimes', 'required', 'string', 'max:150'],
-            'member_code' => ['nullable', 'string', 'max:50'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'village_or_samity' => ['nullable', 'string', 'max:150'],
-        ]);
-
-        $status = $validated['status'];
-        $referral->fill([
-            'status' => $status,
-            'hospital_notes' => $validated['hospital_notes'] ?? $referral->hospital_notes,
-            'member_name' => $validated['member_name'] ?? $referral->member_name,
-            'member_code' => array_key_exists('member_code', $validated) ? $validated['member_code'] : $referral->member_code,
-            'phone' => array_key_exists('phone', $validated) ? $validated['phone'] : $referral->phone,
-            'village_or_samity' => array_key_exists('village_or_samity', $validated) ? $validated['village_or_samity'] : $referral->village_or_samity,
-            'recorded_by' => $user->id,
-            'arrived_at' => $status === Referral::STATUS_ARRIVED ? ($referral->arrived_at ?? now()) : null,
-        ]);
-        $referral->save();
-
-        return back()->with('success', 'Referral updated.');
     }
 
     /**

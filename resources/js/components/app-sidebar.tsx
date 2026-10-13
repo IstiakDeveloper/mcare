@@ -123,6 +123,11 @@ export function AppSidebar() {
             icon: Share2,
         },
         {
+            title: 'Follow Up',
+            href: '/follow-ups',
+            icon: ClipboardList,
+        },
+        {
             title: 'Activity Logs (All Staff)',
             href: '/activities',
             icon: ClipboardList,
@@ -175,6 +180,11 @@ export function AppSidebar() {
                     title: 'Referral Report',
                     href: '/reports?report_type=referral',
                     icon: Share2,
+                },
+                {
+                    title: 'Follow-up Report',
+                    href: '/reports?report_type=followup',
+                    icon: ClipboardList,
                 },
             ],
         },
@@ -258,6 +268,11 @@ export function AppSidebar() {
             href: '/referrals',
             icon: Share2,
         },
+        {
+            title: 'Follow Up',
+            href: '/follow-ups',
+            icon: ClipboardList,
+        },
     ];
 
     const workerReportsItems: NavItem[] = [
@@ -309,6 +324,11 @@ export function AppSidebar() {
                     title: 'Referral Report',
                     href: '/reports?report_type=referral',
                     icon: Share2,
+                },
+                {
+                    title: 'Follow-up Report',
+                    href: '/reports?report_type=followup',
+                    icon: ClipboardList,
                 },
             ],
         },

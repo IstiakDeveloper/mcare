@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,9 +29,9 @@ class Referral extends Model
 {
     public const STATUS_PENDING = 'pending';
 
-    public const STATUS_ARRIVED = 'arrived';
+    public const STATUS_WENT = 'went';
 
-    public const STATUS_NOT_ARRIVED = 'not_arrived';
+    public const STATUS_DID_NOT_GO = 'did_not_go';
 
     protected $fillable = [
         'referred_by',
@@ -59,6 +60,14 @@ class Referral extends Model
             'referral_date' => 'date:Y-m-d',
             'arrived_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return HasOne<FollowUp, $this>
+     */
+    public function followUp(): HasOne
+    {
+        return $this->hasOne(FollowUp::class);
     }
 
     /**
