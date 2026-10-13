@@ -447,14 +447,21 @@ class ReportController extends Controller
     /**
      * @param  Collection<int, DailyActivity>  $activities
      * @param  Collection<int, FeeCollection>  $feeCollections
-     * @return array{summary: array<string, int>, static_diseases: list<array{disease: string, patients: int}>}
+     * @return array{
+     *     summary: array<string, int>,
+     *     breakdown: array<string, list<array{name: string, role: string, branch_name: string, count: int}>>,
+     *     static_diseases: list<array{disease: string, patients: int, recipients: list<array{name: string, role: string, branch_name: string, count: int}>}>
+     * }
      */
     private function buildIllnessReport(Collection $activities, Collection $feeCollections): array
     {
         $summary = $this->blankIllnessTotals();
+        /** @var array<string, array<string, array{name: string, role: string, branch_name: string, count: int}>> $buckets */
+        $buckets = [];
         $static = [];
 
         foreach ($activities as $act) {
+            $branch = $this->illnessBranch($act);
             $data = is_array($act->form_data) ? $act->form_data : [];
             $households = $data['households'] ?? [];
             if (is_array($households)) {
@@ -462,7 +469,7 @@ class ReportController extends Controller
                     if (! is_array($household)) {
                         continue;
                     }
-                    $this->tallyHousehold($summary, $household);
+                    $this->tallyHousehold($summary, $buckets, $household, $branch);
                 }
             }
 
@@ -481,10 +488,13 @@ class ReportController extends Controller
                         $static[$key] = [
                             'disease' => $disease,
                             'patients' => 0,
+                            'recipients' => [],
                         ];
                     }
                     $static[$key]['patients']++;
-                    $summary['static_patients']++;
+                    $recipient = $this->illnessRecipient($patient, ['patient_name', 'member_name'], 'রোগী', $branch);
+                    $this->addIllnessRecipient($static[$key]['recipients'], $recipient, 1);
+                    $this->addIllnessCount($summary, $buckets, 'static_patients', 1, $recipient);
                 }
             }
         }
@@ -493,12 +503,17 @@ class ReportController extends Controller
             if ($fee->collection_type !== 'ডায়াবেটিস পরীক্ষা') {
                 continue;
             }
-            $summary['diabetes_tests']++;
-            if ($fee->beneficiary_type === 'অ-সদস্য') {
-                $summary['diabetes_tests_non_member']++;
-            } else {
-                $summary['diabetes_tests_member']++;
-            }
+            $branch = $this->illnessBranch($fee);
+            $role = $fee->beneficiary_type === 'অ-সদস্য' ? 'অ-সদস্য' : 'সদস্য';
+            $recipient = [
+                'name' => trim((string) $fee->beneficiary_name) !== '' ? trim((string) $fee->beneficiary_name) : 'নাম নেই',
+                'role' => $role,
+                'branch_id' => $branch['branch_id'],
+                'branch_name' => $branch['branch_name'],
+            ];
+            $this->addIllnessCount($summary, $buckets, 'diabetes_tests', 1, $recipient);
+            $memberKey = $role === 'অ-সদস্য' ? 'diabetes_tests_non_member' : 'diabetes_tests_member';
+            $this->addIllnessCount($summary, $buckets, $memberKey, 1, $recipient);
         }
 
         $staticRows = array_values($static);
@@ -506,50 +521,57 @@ class ReportController extends Controller
             return [$b['patients'], $a['disease']] <=> [$a['patients'], $b['disease']];
         });
 
+        $breakdown = [];
+        foreach (array_keys($summary) as $key) {
+            $breakdown[$key] = $this->shapeIllnessRecipients($buckets[$key] ?? []);
+        }
+
         return [
             'summary' => $summary,
-            'static_diseases' => $staticRows,
+            'breakdown' => $breakdown,
+            'static_diseases' => array_map(function (array $row): array {
+                return [
+                    'disease' => $row['disease'],
+                    'patients' => $row['patients'],
+                    'recipients' => $this->shapeIllnessRecipients($row['recipients']),
+                ];
+            }, $staticRows),
         ];
     }
 
     /**
-     * @param  array<string, int>  $row
+     * @param  array<string, int>  $summary
+     * @param  array<string, array<string, array{name: string, role: string, branch_name: string, count: int}>>  $buckets
      * @param  array<string, mixed>  $household
+     * @param  array{branch_id: int, branch_name: string}  $branch
      */
-    private function tallyHousehold(array &$row, array $household): void
+    private function tallyHousehold(array &$summary, array &$buckets, array $household, array $branch): void
     {
-        if (! empty($household['has_pregnant'])) {
-            $row['pregnant']++;
+        $recipient = $this->illnessRecipient($household, ['household_head'], 'খানা প্রধান', $branch);
+
+        foreach ([
+            'has_pregnant' => 'pregnant',
+            'has_anc' => 'anc',
+            'has_tt' => 'tt',
+            'has_delivered' => 'delivered',
+            'has_pnc' => 'pnc',
+            'is_stunting' => 'stunting',
+            'is_wasting' => 'wasting',
+            'is_underweight' => 'underweight',
+        ] as $flag => $key) {
+            if (! empty($household[$flag])) {
+                $this->addIllnessCount($summary, $buckets, $key, 1, $recipient);
+            }
         }
-        if (! empty($household['has_anc'])) {
-            $row['anc']++;
-        }
-        if (! empty($household['has_tt'])) {
-            $row['tt']++;
-        }
-        if (! empty($household['has_delivered'])) {
-            $row['delivered']++;
-        }
-        if (! empty($household['has_pnc'])) {
-            $row['pnc']++;
-        }
-        if (! empty($household['is_stunting'])) {
-            $row['stunting']++;
-        }
-        if (! empty($household['is_wasting'])) {
-            $row['wasting']++;
-        }
-        if (! empty($household['is_underweight'])) {
-            $row['underweight']++;
-        }
+
         if (! empty($household['has_disabled']) || ! empty($household['has_disability'])) {
-            $row['disabled']++;
+            $this->addIllnessCount($summary, $buckets, 'disabled', 1, $recipient);
         }
 
         $general = (int) ($household['general_illness_count'] ?? 0);
-        $row['general_illness'] += $general;
+        $this->addIllnessCount($summary, $buckets, 'general_illness', $general, $recipient);
         if (! empty($household['took_treatment'])) {
-            $row['general_treated'] += $general;
+            $this->addIllnessCount($summary, $buckets, 'general_treated', $general, $recipient);
         }
 
         $diseases = $household['elderly_diseases'] ?? [];
@@ -562,11 +584,98 @@ class ReportController extends Controller
             if (! is_array($status) || empty($status['affected'])) {
                 continue;
             }
-            $row[$key.'_affected']++;
+            $this->addIllnessCount($summary, $buckets, $key.'_affected', 1, $recipient);
             if (! empty($status['taking_medication']) || ! empty($status['regular_medication'])) {
-                $row[$key.'_medication']++;
+                $this->addIllnessCount($summary, $buckets, $key.'_medication', 1, $recipient);
             }
         }
+    }
+
+    /**
+     * @return array{branch_id: int, branch_name: string}
+     */
+    private function illnessBranch(DailyActivity|FeeCollection $record): array
+    {
+        return [
+            'branch_id' => (int) ($record->branch_id ?: 0),
+            'branch_name' => $record->branch?->name ?: 'অনির্ধারিত শাখা',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @param  list<string>  $nameKeys
+     * @param  array{branch_id: int, branch_name: string}  $branch
+     * @return array{name: string, role: string, branch_id: int, branch_name: string}
+     */
+    private function illnessRecipient(array $source, array $nameKeys, string $role, array $branch): array
+    {
+        $name = 'নাম নেই';
+        foreach ($nameKeys as $key) {
+            $value = trim((string) ($source[$key] ?? ''));
+            if ($value !== '' && $value !== '—') {
+                $name = $value;
+                break;
+            }
+        }
+
+        return [
+            'name' => $name,
+            'role' => $role,
+            'branch_id' => $branch['branch_id'],
+            'branch_name' => $branch['branch_name'],
+        ];
+    }
+
+    /**
+     * @param  array<string, int>  $summary
+     * @param  array<string, array<string, array{name: string, role: string, branch_name: string, count: int}>>  $buckets
+     * @param  array{name: string, role: string, branch_id: int, branch_name: string}  $recipient
+     */
+    private function addIllnessCount(array &$summary, array &$buckets, string $key, int $amount, array $recipient): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $summary[$key] += $amount;
+        if (! isset($buckets[$key])) {
+            $buckets[$key] = [];
+        }
+        $this->addIllnessRecipient($buckets[$key], $recipient, $amount);
+    }
+
+    /**
+     * @param  array<string, array{name: string, role: string, branch_name: string, count: int}>  $bucket
+     * @param  array{name: string, role: string, branch_id: int, branch_name: string}  $recipient
+     */
+    private function addIllnessRecipient(array &$bucket, array $recipient, int $amount): void
+    {
+        $recipientKey = mb_strtolower($recipient['name']).'|'.$recipient['branch_id'].'|'.$recipient['role'];
+        if (! isset($bucket[$recipientKey])) {
+            $bucket[$recipientKey] = [
+                'name' => $recipient['name'],
+                'role' => $recipient['role'],
+                'branch_name' => $recipient['branch_name'],
+                'count' => 0,
+            ];
+        }
+
+        $bucket[$recipientKey]['count'] += $amount;
+    }
+
+    /**
+     * @param  array<string, array{name: string, role: string, branch_name: string, count: int}>  $recipients
+     * @return list<array{name: string, role: string, branch_name: string, count: int}>
+     */
+    private function shapeIllnessRecipients(array $recipients): array
+    {
+        $rows = array_values($recipients);
+        usort($rows, function (array $a, array $b): int {
+            return [$b['count'], $a['name'], $a['branch_name']] <=> [$a['count'], $b['name'], $b['branch_name']];
+        });
+
+        return $rows;
     }
 
     /**

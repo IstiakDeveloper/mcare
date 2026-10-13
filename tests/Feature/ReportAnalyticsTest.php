@@ -328,7 +328,22 @@ test('illness report totals follow the date branch and employee filters', functi
         ->and($response->json('illnessReport.summary.diabetes_tests_member'))->toBe(1)
         ->and($response->json('illnessReport.summary.static_patients'))->toBe(2)
         ->and($response->json('illnessReport.static_diseases.0.disease'))->toBe('জ্বর')
-        ->and($response->json('illnessReport.static_diseases.0.patients'))->toBe(2);
+        ->and($response->json('illnessReport.static_diseases.0.patients'))->toBe(2)
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.0.name'))->toBe('Amina')
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.0.role'))->toBe('খানা প্রধান')
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.0.branch_name'))->toBe('Illness Branch A')
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.0.count'))->toBe(1)
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.1.name'))->toBe('Saleha')
+        ->and($response->json('illnessReport.breakdown.diabetes_affected.1.branch_name'))->toBe('Illness Branch B')
+        ->and($response->json('illnessReport.breakdown.general_illness.0.name'))->toBe('Amina')
+        ->and($response->json('illnessReport.breakdown.general_illness.0.count'))->toBe(2)
+        ->and($response->json('illnessReport.breakdown.diabetes_tests.0.name'))->toBe('রহিমা')
+        ->and($response->json('illnessReport.breakdown.diabetes_tests.0.role'))->toBe('সদস্য')
+        ->and($response->json('illnessReport.breakdown.diabetes_tests_member.0.name'))->toBe('রহিমা')
+        ->and($response->json('illnessReport.static_diseases.0.recipients.0.name'))->toBe('Karim')
+        ->and($response->json('illnessReport.static_diseases.0.recipients.0.role'))->toBe('রোগী')
+        ->and($response->json('illnessReport.static_diseases.0.recipients.1.name'))->toBe('Rina')
+        ->and($response->json('illnessReport.breakdown.pregnant.0.name'))->toBe('Amina');
 
     $scoped = $this->actingAs($manager)->getJson(route('reports.index', [
         'start_date' => $today,
@@ -338,7 +353,9 @@ test('illness report totals follow the date branch and employee filters', functi
 
     $scoped->assertOk();
     expect($scoped->json('illnessReport.summary.diabetes_affected'))->toBe(1)
-        ->and($scoped->json('illnessReport.summary.diabetes_tests'))->toBe(1);
+        ->and($scoped->json('illnessReport.summary.diabetes_tests'))->toBe(1)
+        ->and($scoped->json('illnessReport.breakdown.diabetes_affected'))->toHaveCount(1)
+        ->and($scoped->json('illnessReport.breakdown.diabetes_affected.0.name'))->toBe('Amina');
 
     $byBranch = $this->actingAs($admin)->getJson(route('reports.index', [
         'start_date' => $today,
@@ -361,5 +378,7 @@ test('illness report totals follow the date branch and employee filters', functi
     $byEmployee->assertOk();
     expect($byEmployee->json('illnessReport.summary.diabetes_affected'))->toBe(1)
         ->and($byEmployee->json('illnessReport.summary.pregnant'))->toBe(0)
-        ->and($byEmployee->json('illnessReport.summary.diabetes_tests'))->toBe(0);
+        ->and($byEmployee->json('illnessReport.summary.diabetes_tests'))->toBe(0)
+        ->and($byEmployee->json('illnessReport.breakdown.diabetes_affected.0.name'))->toBe('Saleha')
+        ->and($byEmployee->json('illnessReport.breakdown.pregnant'))->toBe([]);
 });

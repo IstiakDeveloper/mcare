@@ -17,6 +17,7 @@ import {
     Layers,
     MapPin,
     Phone,
+    ChevronRight,
     Printer,
     RefreshCw,
     Search,
@@ -154,9 +155,17 @@ type IllnessSummary = {
     static_patients: number;
 };
 
+type IllnessRecipient = {
+    name: string;
+    role: string;
+    branch_name: string;
+    count: number;
+};
+
 type IllnessReport = {
     summary: IllnessSummary;
-    static_diseases: { disease: string; patients: number }[];
+    breakdown: Partial<Record<keyof IllnessSummary, IllnessRecipient[]>>;
+    static_diseases: { disease: string; patients: number; recipients: IllnessRecipient[] }[];
 };
 
 const ILLNESS_POINTS: { key: keyof IllnessSummary; label: string; unit: string }[] = [
@@ -292,6 +301,135 @@ type Props = {
     };
 };
 
+function illnessRowsAllOpen(report: IllnessReport, openRows: Record<string, boolean>): boolean {
+    const keys: string[] = ILLNESS_POINTS.filter((point) => report.summary[point.key] > 0).map((point) => point.key);
+    report.static_diseases.forEach((item) => {
+        if (item.patients > 0) {
+            keys.push(`static:${item.disease}`);
+        }
+    });
+
+    return keys.length > 0 && keys.every((key) => openRows[key]);
+}
+
+function appendIllnessExportRows(
+    rows: string[][],
+    label: string,
+    unit: string,
+    total: number,
+    recipients: IllnessRecipient[],
+): void {
+    if (recipients.length === 0) {
+        rows.push([label, unit, String(total), '', '', '', '']);
+
+        return;
+    }
+
+    recipients.forEach((recipient) => {
+        rows.push([
+            label,
+            unit,
+            String(total),
+            recipient.name,
+            recipient.role,
+            recipient.branch_name,
+            String(recipient.count),
+        ]);
+    });
+}
+
+function IllnessRecipientList({ recipients }: { recipients: IllnessRecipient[] }) {
+    if (recipients.length === 0) {
+        return <p className="px-1 py-1 text-[11px] text-muted-foreground">এই সংখ্যার জন্য সেবাগ্রহীতার নাম নেই।</p>;
+    }
+
+    return (
+        <div className="max-h-64 overflow-y-auto rounded-lg border border-border/70 bg-muted/20 px-3 py-2 print:max-h-none print:overflow-visible print:border-black print:bg-transparent">
+            <div className="mb-1.5 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] gap-3 text-[10px] font-bold tracking-wide text-muted-foreground uppercase print:text-black">
+                <span>যাদের সেবা দেওয়া হয়েছে</span>
+                <span>শাখা</span>
+                <span className="text-right">সংখ্যা</span>
+            </div>
+            <ul className="space-y-1.5">
+                {recipients.map((recipient) => (
+                    <li
+                        key={`${recipient.name}-${recipient.role}-${recipient.branch_name}`}
+                        className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-3"
+                    >
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                            <User className="size-3.5 shrink-0 text-primary print:text-black" />
+                            <span className="min-w-0">
+                                <span className="block truncate font-bold text-foreground">{recipient.name}</span>
+                                <span className="block truncate text-[10px] text-muted-foreground print:text-black">{recipient.role}</span>
+                            </span>
+                        </span>
+                        <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground print:text-black">
+                            <Building2 className="size-3 shrink-0" />
+                            <span className="truncate">{recipient.branch_name}</span>
+                        </span>
+                        <span className="text-right font-semibold text-foreground tabular-nums">{recipient.count}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+function IllnessMetricRows({
+    rowKey,
+    label,
+    unit,
+    total,
+    recipients,
+    open,
+    onToggle,
+}: {
+    rowKey: string;
+    label: string;
+    unit: string;
+    total: number;
+    recipients: IllnessRecipient[];
+    open: boolean;
+    onToggle: () => void;
+}) {
+    const expandable = total > 0;
+
+    return (
+        <>
+            <tr className={expandable ? 'cursor-pointer hover:bg-muted/20' : undefined} onClick={expandable ? onToggle : undefined}>
+                <td className="px-3 py-2 font-semibold text-foreground">{label}</td>
+                <td className="px-3 py-2 text-muted-foreground print:text-black">{unit}</td>
+                <td className="px-3 py-2 text-right">
+                    {expandable ? (
+                        <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-controls={`illness-breakdown-${rowKey}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onToggle();
+                            }}
+                            className="inline-flex cursor-pointer items-center gap-1 text-base font-bold text-primary tabular-nums hover:underline"
+                        >
+                            <ChevronRight className={`size-3.5 transition-transform print:hidden ${open ? 'rotate-90' : ''}`} />
+                            {total}
+                        </button>
+                    ) : (
+                        <span className="text-base font-bold text-muted-foreground tabular-nums">{total}</span>
+                    )}
+                </td>
+            </tr>
+            {open && expandable && (
+                <tr id={`illness-breakdown-${rowKey}`} className="bg-muted/10 print:bg-transparent">
+                    <td colSpan={3} className="px-3 py-2">
+                        <IllnessRecipientList recipients={recipients} />
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+}
+
 const REPORT_TITLES: Record<string, string> = {
     activities: 'Field Activities Summary',
     households: 'Household Visits Register',
@@ -329,6 +467,7 @@ export default function ReportsIndex({
     const [branchId, setBranchId] = useState(filters.branch_id || 'all');
     const [userId, setUserId] = useState(filters.user_id || 'all');
     const [officerSearch, setOfficerSearch] = useState('');
+    const [openIllnessRows, setOpenIllnessRows] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         setStartDate(filters.start_date || today);
@@ -569,15 +708,21 @@ export default function ReportsIndex({
             rows.push(['Branch', selectedBranchName]);
             rows.push(['Employee', selectedOfficerName]);
             rows.push([]);
-            rows.push(['Point', 'Unit', 'Total']);
+            rows.push(['Point', 'Unit', 'Total', 'Name', 'Role', 'Branch', 'Count']);
             ILLNESS_POINTS.forEach((point) => {
-                rows.push([point.label, point.unit, String(illnessReport.summary[point.key])]);
+                appendIllnessExportRows(
+                    rows,
+                    point.label,
+                    point.unit,
+                    illnessReport.summary[point.key],
+                    illnessReport.breakdown[point.key] ?? [],
+                );
             });
             if (illnessReport.static_diseases.length > 0) {
                 rows.push([]);
-                rows.push(['Static clinic disease', 'Patients']);
+                rows.push(['Static clinic disease', 'Unit', 'Patients', 'Name', 'Role', 'Branch', 'Count']);
                 illnessReport.static_diseases.forEach((item) => {
-                    rows.push([item.disease, String(item.patients)]);
+                    appendIllnessExportRows(rows, item.disease, 'জন', item.patients, item.recipients ?? []);
                 });
             }
         } else if (activeTab === 'referral' && referralReport) {
@@ -1521,9 +1666,36 @@ export default function ReportsIndex({
 
                     {activeTab === 'illness' && illnessReport && (
                         <div className="space-y-3 p-3 print:space-y-3 print:p-0">
-                            <p className="text-[11px] text-muted-foreground print:text-black">
-                                নির্বাচিত তারিখের মোট সংখ্যা। শাখা বা কর্মী বাছলে শুধু সেই অংশের মোট দেখাবে। খানা মানে যে খানায় এই অবস্থা পাওয়া গেছে। ডায়াবেটিস পরীক্ষা, সাধারণ অসুস্থতা এবং স্ট্যাটিক ক্লিনিক জনসংখ্যা।
-                            </p>
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <p className="max-w-3xl text-[11px] text-muted-foreground print:text-black">
+                                    মোট সংখ্যায় ক্লিক করলে যাদের সেবা বা চিকিৎসা দেওয়া হয়েছে তাদের নাম দেখা যাবে। খানা পরিদর্শনে খানা প্রধানের নাম আসে। ক্লিনিক ও ডায়াবেটিস পরীক্ষায় রোগীর নাম আসে।
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 shrink-0 rounded-lg text-[11px] font-semibold print:hidden"
+                                    onClick={() => {
+                                        const nextOpen = !illnessRowsAllOpen(illnessReport, openIllnessRows);
+                                        const next: Record<string, boolean> = {};
+                                        if (nextOpen) {
+                                            ILLNESS_POINTS.forEach((point) => {
+                                                if (illnessReport.summary[point.key] > 0) {
+                                                    next[point.key] = true;
+                                                }
+                                            });
+                                            illnessReport.static_diseases.forEach((item) => {
+                                                if (item.patients > 0) {
+                                                    next[`static:${item.disease}`] = true;
+                                                }
+                                            });
+                                        }
+                                        setOpenIllnessRows(next);
+                                    }}
+                                >
+                                    {illnessRowsAllOpen(illnessReport, openIllnessRows) ? 'বিবরণ লুকান' : 'সব বিবরণ দেখুন'}
+                                </Button>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs print:text-[10pt]">
                                     <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground print:bg-gray-100 print:text-black">
@@ -1535,18 +1707,38 @@ export default function ReportsIndex({
                                     </thead>
                                     <tbody className="divide-y divide-border print:divide-black">
                                         {ILLNESS_POINTS.map((point) => (
-                                            <tr key={point.key}>
-                                                <td className="px-3 py-2 font-semibold text-foreground">{point.label}</td>
-                                                <td className="px-3 py-2 text-muted-foreground print:text-black">{point.unit}</td>
-                                                <td className="px-3 py-2 text-right text-base font-bold text-foreground">{illnessReport.summary[point.key]}</td>
-                                            </tr>
+                                            <IllnessMetricRows
+                                                key={point.key}
+                                                rowKey={point.key}
+                                                label={point.label}
+                                                unit={point.unit}
+                                                total={illnessReport.summary[point.key]}
+                                                recipients={illnessReport.breakdown[point.key] ?? []}
+                                                open={Boolean(openIllnessRows[point.key])}
+                                                onToggle={() =>
+                                                    setOpenIllnessRows((current) => ({
+                                                        ...current,
+                                                        [point.key]: !current[point.key],
+                                                    }))
+                                                }
+                                            />
                                         ))}
                                         {illnessReport.static_diseases.map((item) => (
-                                            <tr key={item.disease}>
-                                                <td className="px-3 py-2 font-semibold text-foreground">স্ট্যাটিক ক্লিনিক — {item.disease}</td>
-                                                <td className="px-3 py-2 text-muted-foreground print:text-black">জন</td>
-                                                <td className="px-3 py-2 text-right text-base font-bold text-foreground">{item.patients}</td>
-                                            </tr>
+                                            <IllnessMetricRows
+                                                key={`static:${item.disease}`}
+                                                rowKey={`static:${item.disease}`}
+                                                label={`স্ট্যাটিক ক্লিনিক — ${item.disease}`}
+                                                unit="জন"
+                                                total={item.patients}
+                                                recipients={item.recipients ?? []}
+                                                open={Boolean(openIllnessRows[`static:${item.disease}`])}
+                                                onToggle={() =>
+                                                    setOpenIllnessRows((current) => ({
+                                                        ...current,
+                                                        [`static:${item.disease}`]: !current[`static:${item.disease}`],
+                                                    }))
+                                                }
+                                            />
                                         ))}
                                     </tbody>
                                 </table>
