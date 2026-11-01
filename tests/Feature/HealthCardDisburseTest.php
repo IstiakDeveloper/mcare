@@ -15,7 +15,9 @@ class HealthCardDisburseTest extends TestCase
     use RefreshDatabase;
 
     private User $worker;
+
     private User $admin;
+
     private Branch $branch;
 
     protected function setUp(): void
@@ -169,6 +171,108 @@ class HealthCardDisburseTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseMissing('health_card_disburses', [
             'id' => $card->id,
+        ]);
+    }
+
+    public function test_date_range_filter_returns_cards_disbursed_between_from_and_to(): void
+    {
+        $this->makeCard('আগে বিতরণ', '2026-01-05');
+        $this->makeCard('মাঝের কার্ড', '2026-03-15');
+        $this->makeCard('পরে বিতরণ', '2026-06-20');
+
+        $response = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'start_date' => '2026-02-01',
+            'end_date' => '2026-04-30',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('cards.data', 1)
+            ->where('cards.data.0.member_name', 'মাঝের কার্ড')
+            ->where('filters.start_date', '2026-02-01')
+            ->where('filters.end_date', '2026-04-30')
+        );
+    }
+
+    public function test_to_date_alone_includes_every_card_up_to_that_day(): void
+    {
+        $this->makeCard('আগে বিতরণ', '2026-01-05');
+        $this->makeCard('ওই দিন', '2026-03-15');
+        $this->makeCard('পরে বিতরণ', '2026-06-20');
+
+        $response = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'end_date' => '2026-03-15',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('cards.data', 2)
+            ->where('filters.start_date', '')
+            ->where('filters.end_date', '2026-03-15')
+        );
+    }
+
+    public function test_from_date_alone_includes_every_card_from_that_day(): void
+    {
+        $this->makeCard('আগে বিতরণ', '2026-01-05');
+        $this->makeCard('ওই দিন', '2026-03-15');
+        $this->makeCard('পরে বিতরণ', '2026-06-20');
+
+        $response = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'start_date' => '2026-03-15',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->has('cards.data', 2));
+    }
+
+    public function test_reversed_date_range_still_returns_the_list(): void
+    {
+        $this->makeCard('মাঝের কার্ড', '2026-03-15');
+        $this->makeCard('বাইরের কার্ড', '2026-08-01');
+
+        $response = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'start_date' => '2026-04-30',
+            'end_date' => '2026-02-01',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('cards.data', 1)
+            ->where('cards.data.0.member_name', 'মাঝের কার্ড')
+            ->where('filters.start_date', '2026-02-01')
+            ->where('filters.end_date', '2026-04-30')
+        );
+    }
+
+    public function test_invalid_date_filter_does_not_hide_the_list(): void
+    {
+        $this->makeCard('দৃশ্যমান কার্ড', now()->toDateString());
+
+        $response = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'start_date' => 'not-a-date',
+            'end_date' => 'also-bad',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('cards.data', 1)
+            ->where('cards.data.0.member_name', 'দৃশ্যমান কার্ড')
+            ->where('filters.start_date', '')
+            ->where('filters.end_date', '')
+        );
+    }
+
+    private function makeCard(string $name, string $entryDate): HealthCardDisburse
+    {
+        return HealthCardDisburse::create([
+            'user_id' => $this->worker->id,
+            'branch_id' => $this->branch->id,
+            'member_name' => $name,
+            'member_code' => 'MEM-'.substr(md5($name), 0, 6),
+            'health_card_number' => 'HC-'.substr(md5($name.$entryDate), 0, 8),
+            'entry_date' => $entryDate,
+            'expire_date' => Carbon::parse($entryDate)->addYear()->toDateString(),
         ]);
     }
 }

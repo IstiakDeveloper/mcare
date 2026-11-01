@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\HealthCardDisburse;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,14 +63,10 @@ class HealthCardDisburseController extends Controller
             }
         }
 
-        // Date / Month Filter
-        if ($request->filled('date')) {
-            $query->whereDate('entry_date', $request->input('date'));
-        } elseif ($request->filled('month')) {
-            $monthInput = (string) $request->input('month');
-            $query->whereYear('entry_date', substr($monthInput, 0, 4))
-                ->whereMonth('entry_date', substr($monthInput, 5, 2));
-        }
+        // Disbursement date range (from / to). A single bound stays open on the other side,
+        // so filtering by "to" still returns every card up to that day.
+        [$startDate, $endDate] = $this->entryDateRange($request);
+        $this->applyEntryDateRange($query, $startDate, $endDate);
 
         // Statistics Base Query
         $statsBaseQuery = HealthCardDisburse::query();
@@ -116,6 +113,7 @@ class HealthCardDisburseController extends Controller
 
             $card->days_remaining = $daysRemaining;
             $card->validity_status = $validityStatus;
+
             return $card;
         });
 
@@ -125,8 +123,8 @@ class HealthCardDisburseController extends Controller
                 'search' => $request->input('search', ''),
                 'branch_id' => $request->input('branch_id', ''),
                 'status' => $request->input('status', ''),
-                'date' => $request->input('date', ''),
-                'month' => $request->input('month', ''),
+                'start_date' => $startDate ?? '',
+                'end_date' => $endDate ?? '',
             ],
             'stats' => [
                 'total_count' => $totalCount,
@@ -225,5 +223,55 @@ class HealthCardDisburseController extends Controller
         $healthCard->delete();
 
         return redirect()->back()->with('success', 'হেলথ কার্ডের রেকর্ডটি সফলভাবে মুছে ফেলা হয়েছে।');
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function entryDateRange(Request $request): array
+    {
+        $start = $this->parseFilterDate($request->input('start_date'));
+        $end = $this->parseFilterDate($request->input('end_date'));
+
+        if ($start === null && $end === null) {
+            $single = $this->parseFilterDate($request->input('date'));
+            if ($single !== null) {
+                $start = $single;
+                $end = $single;
+            }
+        }
+
+        if ($start !== null && $end !== null && $start > $end) {
+            return [$end, $start];
+        }
+
+        return [$start, $end];
+    }
+
+    private function parseFilterDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param  Builder<HealthCardDisburse>  $query
+     */
+    private function applyEntryDateRange(Builder $query, ?string $start, ?string $end): void
+    {
+        if ($start !== null) {
+            $query->whereDate('entry_date', '>=', $start);
+        }
+
+        if ($end !== null) {
+            $query->whereDate('entry_date', '<=', $end);
+        }
     }
 }

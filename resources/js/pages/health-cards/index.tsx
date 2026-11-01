@@ -20,7 +20,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,8 +41,8 @@ type Props = {
         search?: string;
         branch_id?: string;
         status?: string;
-        date?: string;
-        month?: string;
+        start_date?: string;
+        end_date?: string;
     };
     stats: {
         total_count: number;
@@ -93,8 +93,16 @@ export default function HealthCardsIndex({
     const [filterSearch, setFilterSearch] = useState(filters.search || '');
     const [filterBranch, setFilterBranch] = useState(filters.branch_id || '');
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
-    const [filterDate, setFilterDate] = useState(filters.date || '');
-    const [filterMonth, setFilterMonth] = useState(filters.month || '');
+    const [filterStartDate, setFilterStartDate] = useState(filters.start_date || '');
+    const [filterEndDate, setFilterEndDate] = useState(filters.end_date || '');
+
+    useEffect(() => {
+        setFilterSearch(filters.search || '');
+        setFilterBranch(filters.branch_id || '');
+        setFilterStatus(filters.status || '');
+        setFilterStartDate(filters.start_date || '');
+        setFilterEndDate(filters.end_date || '');
+    }, [filters.search, filters.branch_id, filters.status, filters.start_date, filters.end_date]);
 
     // Duration helper in Add Form
     const [addDurationYears, setAddDurationYears] = useState<number>(1);
@@ -167,16 +175,25 @@ export default function HealthCardsIndex({
 
     const handleApplyFilters = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+
+        let start = filterStartDate;
+        let end = filterEndDate;
+        if (start && end && start > end) {
+            [start, end] = [end, start];
+            setFilterStartDate(start);
+            setFilterEndDate(end);
+        }
+
         router.get(
             '/health-cards',
             {
                 search: filterSearch || undefined,
                 branch_id: filterBranch || undefined,
                 status: filterStatus || undefined,
-                date: filterDate || undefined,
-                month: filterMonth || undefined,
+                start_date: start || undefined,
+                end_date: end || undefined,
             },
-            { preserveState: true, preserveScroll: true },
+            { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
@@ -184,10 +201,14 @@ export default function HealthCardsIndex({
         setFilterSearch('');
         setFilterBranch('');
         setFilterStatus('');
-        setFilterDate('');
-        setFilterMonth('');
-        router.get('/health-cards', {}, { preserveState: true });
+        setFilterStartDate('');
+        setFilterEndDate('');
+        router.get('/health-cards', {}, { preserveState: true, preserveScroll: true, replace: true });
     };
+
+    const hasActiveFilters = Boolean(
+        filters.search || filters.branch_id || filters.status || filters.start_date || filters.end_date,
+    );
 
     const handleAddSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -396,14 +417,29 @@ export default function HealthCardsIndex({
                                 </select>
                             ) : null}
 
-                            {/* Date Filter */}
-                            <Input
-                                type="date"
-                                value={filterDate}
-                                onChange={(e) => setFilterDate(e.target.value)}
-                                className="h-9 sm:h-8 text-xs rounded-xl bg-background w-auto min-w-[130px]"
-                                title="এন্ট্রির নির্দিষ্ট তারিখ"
-                            />
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold text-muted-foreground shrink-0">থেকে</span>
+                                <Input
+                                    type="date"
+                                    value={filterStartDate}
+                                    onChange={(e) => setFilterStartDate(e.target.value)}
+                                    className="h-9 sm:h-8 text-xs rounded-xl bg-background w-[9.5rem]"
+                                    aria-label="শুরুর তারিখ"
+                                    title="বিতরণের শুরুর তারিখ"
+                                />
+                            </label>
+
+                            <label className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold text-muted-foreground shrink-0">পর্যন্ত</span>
+                                <Input
+                                    type="date"
+                                    value={filterEndDate}
+                                    onChange={(e) => setFilterEndDate(e.target.value)}
+                                    className="h-9 sm:h-8 text-xs rounded-xl bg-background w-[9.5rem]"
+                                    aria-label="শেষ তারিখ"
+                                    title="বিতরণের শেষ তারিখ"
+                                />
+                            </label>
 
                             {/* Filter Buttons */}
                             <div className="flex items-center gap-1.5 ml-auto">
@@ -415,7 +451,7 @@ export default function HealthCardsIndex({
                                     <Filter className="size-3 mr-1" />
                                     ফিল্টার
                                 </Button>
-                                {(filterSearch || filterBranch || filterStatus || filterDate || filterMonth) ? (
+                                {(filterSearch || filterBranch || filterStatus || filterStartDate || filterEndDate) ? (
                                     <Button
                                         type="button"
                                         onClick={handleResetFilters}
@@ -447,10 +483,14 @@ export default function HealthCardsIndex({
                                 <CreditCard className="size-6" />
                             </div>
                             <h4 className="mt-2.5 text-xs sm:text-sm font-bold text-foreground">
-                                কোনো হেলথ কার্ডের রেকর্ড পাওয়া যায়নি
+                                {hasActiveFilters
+                                    ? 'এই ফিল্টারে কোনো হেলথ কার্ড পাওয়া যায়নি'
+                                    : 'কোনো হেলথ কার্ডের রেকর্ড পাওয়া যায়নি'}
                             </h4>
                             <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 max-w-xs">
-                                উপরে <strong>"+ নতুন কার্ড বিতরণ এন্ট্রি"</strong> বাটনে ক্লিক করে নতুন কার্ড ইস্যু করুন।
+                                {hasActiveFilters
+                                    ? 'তারিখের পরিসর, স্ট্যাটাস বা সার্চ বদলে আবার ফিল্টার করুন।'
+                                    : <>উপরে <strong>"+ নতুন কার্ড বিতরণ এন্ট্রি"</strong> বাটনে ক্লিক করে নতুন কার্ড ইস্যু করুন।</>}
                             </p>
                         </div>
                     ) : (
@@ -686,7 +726,7 @@ export default function HealthCardsIndex({
                                         variant={link.active ? 'default' : 'outline'}
                                         size="sm"
                                         disabled={!link.url}
-                                        onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                        onClick={() => link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                         className="h-7 min-w-7 text-[11px] rounded-lg"
                                     />
