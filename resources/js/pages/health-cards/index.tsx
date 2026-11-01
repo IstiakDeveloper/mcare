@@ -35,6 +35,16 @@ import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/utils';
 import type { BranchOption, HealthCardDisburse, Paginated } from '@/types/mcare';
 
+type BranchLedgerRow = {
+    branch_id: number | null;
+    name: string;
+    code: string | null;
+    total_count: number;
+    active_count: number;
+    expiring_soon_count: number;
+    expired_count: number;
+};
+
 type Props = {
     cards: Paginated<HealthCardDisburse>;
     filters: {
@@ -43,7 +53,9 @@ type Props = {
         status?: string;
         start_date?: string;
         end_date?: string;
+        view?: string;
     };
+    branchLedger: BranchLedgerRow[] | null;
     stats: {
         total_count: number;
         month_count: number;
@@ -79,6 +91,7 @@ export default function HealthCardsIndex({
     cards,
     filters,
     stats,
+    branchLedger,
     branches,
     today,
     userBranchId,
@@ -173,9 +186,9 @@ export default function HealthCardsIndex({
         }
     };
 
-    const handleApplyFilters = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
+    const showLedger = filters.view === 'ledger';
 
+    const buildFilterQuery = (view?: 'ledger') => {
         let start = filterStartDate;
         let end = filterEndDate;
         if (start && end && start > end) {
@@ -184,14 +197,40 @@ export default function HealthCardsIndex({
             setFilterEndDate(end);
         }
 
+        return {
+            search: filterSearch || undefined,
+            branch_id: filterBranch || undefined,
+            status: filterStatus || undefined,
+            start_date: start || undefined,
+            end_date: end || undefined,
+            view: view || undefined,
+        };
+    };
+
+    const handleApplyFilters = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        router.get('/health-cards', buildFilterQuery(showLedger ? 'ledger' : undefined), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const handleToggleLedger = () => {
+        router.get('/health-cards', buildFilterQuery(showLedger ? undefined : 'ledger'), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const openBranchCards = (branchId: number) => {
+        setFilterBranch(String(branchId));
         router.get(
             '/health-cards',
             {
-                search: filterSearch || undefined,
-                branch_id: filterBranch || undefined,
-                status: filterStatus || undefined,
-                start_date: start || undefined,
-                end_date: end || undefined,
+                ...buildFilterQuery(),
+                branch_id: branchId,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -209,6 +248,20 @@ export default function HealthCardsIndex({
     const hasActiveFilters = Boolean(
         filters.search || filters.branch_id || filters.status || filters.start_date || filters.end_date,
     );
+    const ledgerRows = branchLedger ?? [];
+    const ledgerTotals = ledgerRows.reduce(
+        (sum, row) => ({
+            total_count: sum.total_count + row.total_count,
+            active_count: sum.active_count + row.active_count,
+            expiring_soon_count: sum.expiring_soon_count + row.expiring_soon_count,
+            expired_count: sum.expired_count + row.expired_count,
+        }),
+        { total_count: 0, active_count: 0, expiring_soon_count: 0, expired_count: 0 },
+    );
+    const ledgerPeriod =
+        filters.start_date || filters.end_date
+            ? `${filters.start_date ? formatDate(filters.start_date) : 'শুরু'} — ${filters.end_date ? formatDate(filters.end_date) : 'এখন পর্যন্ত'}`
+            : 'সব তারিখ';
 
     const handleAddSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -470,14 +523,122 @@ export default function HealthCardsIndex({
 
                 {/* 4. Health Card Disburse Data List (Mobile Cards + Desktop Table) */}
                 <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden">
-                    <div className="p-3.5 border-b bg-muted/20 flex items-center justify-between">
+                    <div className="p-3.5 border-b bg-muted/20 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                            <CreditCard className="size-3.5 text-primary" />
-                            বিতরণকৃত কার্ডের তালিকা ({cards.total} টি রেকর্ড)
+                            {showLedger ? <Building2 className="size-3.5 text-primary" /> : <CreditCard className="size-3.5 text-primary" />}
+                            {showLedger
+                                ? `শাখাভিত্তিক লেজার (${ledgerTotals.total_count.toLocaleString()} টি)`
+                                : `বিতরণকৃত কার্ডের তালিকা (${cards.total} টি রেকর্ড)`}
                         </h3>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showLedger}
+                            onClick={handleToggleLedger}
+                            className={`inline-flex items-center gap-2 self-start rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer ${
+                                showLedger
+                                    ? 'border-primary/40 bg-primary/10 text-primary'
+                                    : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <Building2 className="size-3.5" />
+                            শাখাভিত্তিক লেজার
+                            <span
+                                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                                    showLedger ? 'bg-primary' : 'bg-muted-foreground/30'
+                                }`}
+                            >
+                                <span
+                                    className={`absolute top-0.5 size-4 rounded-full bg-white shadow-xs transition-all ${
+                                        showLedger ? 'left-4' : 'left-0.5'
+                                    }`}
+                                />
+                            </span>
+                        </button>
                     </div>
 
-                    {cards.data.length === 0 ? (
+                    {showLedger ? (
+                        <div>
+                            <p className="px-3.5 pt-3 text-[11px] text-muted-foreground">
+                                বিতরণের তারিখ: <strong className="text-foreground">{ledgerPeriod}</strong>
+                                {' · '}
+                                {branches.length > 1
+                                    ? 'প্রতিটি শাখায় কতগুলো কার্ড। সংখ্যায় ক্লিক করলে সেই শাখার তালিকা খুলবে।'
+                                    : 'প্রতিটি শাখায় কতগুলো কার্ড।'}
+                            </p>
+                            <div className="grid gap-2.5 p-3 md:hidden">
+                                {ledgerRows.map((row) => (
+                                    <button
+                                        key={row.branch_id ?? 'none'}
+                                        type="button"
+                                        onClick={() => row.branch_id && branches.length > 1 && openBranchCards(row.branch_id)}
+                                        className="rounded-2xl border border-border/80 bg-background/60 p-3.5 text-left shadow-2xs"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{row.name}</p>
+                                                {row.code ? (
+                                                    <p className="text-[10px] font-mono text-muted-foreground">{row.code}</p>
+                                                ) : null}
+                                            </div>
+                                            <span className="rounded-xl bg-primary/10 px-2.5 py-1 text-sm font-bold text-primary">
+                                                {row.total_count.toLocaleString()} টি
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+                                            <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">সচল {row.active_count}</span>
+                                            <span className="rounded-lg bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-300">শীঘ্রই {row.expiring_soon_count}</span>
+                                            <span className="rounded-lg bg-rose-500/15 px-2 py-0.5 text-rose-700 dark:text-rose-300">মেয়াদোত্তীর্ণ {row.expired_count}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground">
+                                        <tr>
+                                            <th className="px-3 py-2.5">#</th>
+                                            <th className="px-3 py-2.5">শাখা</th>
+                                            <th className="px-3 py-2.5 text-right">মোট কার্ড</th>
+                                            <th className="px-3 py-2.5 text-right">সচল</th>
+                                            <th className="px-3 py-2.5 text-right">শীঘ্রই শেষ</th>
+                                            <th className="px-3 py-2.5 text-right">মেয়াদোত্তীর্ণ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {ledgerRows.map((row, idx) => (
+                                            <tr
+                                                key={row.branch_id ?? 'none'}
+                                                onClick={() => row.branch_id && branches.length > 1 && openBranchCards(row.branch_id)}
+                                                className={branches.length > 1 && row.branch_id ? 'cursor-pointer hover:bg-muted/15' : ''}
+                                            >
+                                                <td className="px-3 py-2.5 font-bold text-muted-foreground">{idx + 1}</td>
+                                                <td className="px-3 py-2.5">
+                                                    <div className="font-bold text-foreground">{row.name}</div>
+                                                    {row.code ? (
+                                                        <div className="font-mono text-[10px] text-muted-foreground">{row.code}</div>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right text-sm font-bold text-primary">{row.total_count.toLocaleString()}</td>
+                                                <td className="px-3 py-2.5 text-right font-semibold text-emerald-700 dark:text-emerald-300">{row.active_count.toLocaleString()}</td>
+                                                <td className="px-3 py-2.5 text-right font-semibold text-amber-700 dark:text-amber-300">{row.expiring_soon_count.toLocaleString()}</td>
+                                                <td className="px-3 py-2.5 text-right font-semibold text-rose-700 dark:text-rose-300">{row.expired_count.toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="border-t bg-muted/30 text-[11px] font-bold">
+                                        <tr>
+                                            <td className="px-3 py-2.5" colSpan={2}>মোট</td>
+                                            <td className="px-3 py-2.5 text-right text-primary">{ledgerTotals.total_count.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 text-right text-emerald-700 dark:text-emerald-300">{ledgerTotals.active_count.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 text-right text-amber-700 dark:text-amber-300">{ledgerTotals.expiring_soon_count.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 text-right text-rose-700 dark:text-rose-300">{ledgerTotals.expired_count.toLocaleString()}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    ) : cards.data.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center">
                             <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
                                 <CreditCard className="size-6" />
@@ -714,7 +875,7 @@ export default function HealthCardsIndex({
                     )}
 
                     {/* Pagination */}
-                    {cards.last_page > 1 ? (
+                    {!showLedger && cards.last_page > 1 ? (
                         <div className="p-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                             <span className="text-muted-foreground text-[11px]">
                                 পৃষ্ঠা {cards.current_page} এর {cards.last_page} (মোট {cards.total} টি)

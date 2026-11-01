@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\HealthCardDisburse;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -16,57 +17,22 @@ class HealthCardDisburseController extends Controller
 {
     public function index(Request $request): Response
     {
+        /** @var User $user */
         $user = Auth::user();
         $today = Carbon::today()->toDateString();
         $thirtyDaysFromNow = Carbon::today()->addDays(30)->toDateString();
+
+        $isAdmin = $user->isAdmin();
+        $isBranchManager = $user->isBranchManager();
+        $showLedger = $request->input('view') === 'ledger';
+        [$startDate, $endDate] = $this->entryDateRange($request);
 
         $query = HealthCardDisburse::with(['user:id,name,employee_code', 'branch:id,name,branch_code'])
             ->latest('entry_date')
             ->latest('id');
 
-        // Role & Branch Scoping
-        $isAdmin = $user->isAdmin();
-        $isBranchManager = $user->isBranchManager();
-
-        if (! $isAdmin) {
-            if ($isBranchManager || $user->branch_id) {
-                $query->where('branch_id', $user->branch_id);
-            } else {
-                $query->where('user_id', $user->id);
-            }
-        } elseif ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->input('branch_id'));
-        }
-
-        // Search Filter
-        if ($request->filled('search')) {
-            $search = trim((string) $request->input('search'));
-            $query->where(function ($q) use ($search) {
-                $q->where('member_name', 'like', "%{$search}%")
-                    ->orWhere('member_code', 'like', "%{$search}%")
-                    ->orWhere('health_card_number', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('village_or_samity', 'like', "%{$search}%");
-            });
-        }
-
-        // Status Filter
-        if ($request->filled('status')) {
-            $status = $request->input('status');
-            if ($status === 'active') {
-                $query->whereDate('expire_date', '>=', $today);
-            } elseif ($status === 'expired') {
-                $query->whereDate('expire_date', '<', $today);
-            } elseif ($status === 'expiring_soon') {
-                $query->whereDate('expire_date', '>=', $today)
-                    ->whereDate('expire_date', '<=', $thirtyDaysFromNow);
-            }
-        }
-
-        // Disbursement date range (from / to). A single bound stays open on the other side,
-        // so filtering by "to" still returns every card up to that day.
-        [$startDate, $endDate] = $this->entryDateRange($request);
-        $this->applyEntryDateRange($query, $startDate, $endDate);
+        $this->applyCardVisibility($query, $user, $isAdmin, $isBranchManager);
+        $this->applyCardFilters($query, $request, $today, $thirtyDaysFromNow, $startDate, $endDate, true);
 
         // Statistics Base Query
         $statsBaseQuery = HealthCardDisburse::query();
@@ -125,7 +91,11 @@ class HealthCardDisburseController extends Controller
                 'status' => $request->input('status', ''),
                 'start_date' => $startDate ?? '',
                 'end_date' => $endDate ?? '',
+                'view' => $showLedger ? 'ledger' : '',
             ],
+            'branchLedger' => $showLedger
+                ? $this->branchLedger($request, $user, $isAdmin, $isBranchManager, $today, $thirtyDaysFromNow, $startDate, $endDate)
+                : null,
             'stats' => [
                 'total_count' => $totalCount,
                 'month_count' => $monthCount,
@@ -223,6 +193,143 @@ class HealthCardDisburseController extends Controller
         $healthCard->delete();
 
         return redirect()->back()->with('success', 'হেলথ কার্ডের রেকর্ডটি সফলভাবে মুছে ফেলা হয়েছে।');
+    }
+
+    /**
+     * @param  Builder<HealthCardDisburse>  $query
+     */
+    private function applyCardVisibility(Builder $query, User $user, bool $isAdmin, bool $isBranchManager): void
+    {
+        if ($isAdmin) {
+            return;
+        }
+
+        if ($isBranchManager || $user->branch_id) {
+            $query->where('branch_id', $user->branch_id);
+
+            return;
+        }
+
+        $query->where('user_id', $user->id);
+    }
+
+    /**
+     * @param  Builder<HealthCardDisburse>  $query
+     */
+    private function applyCardFilters(
+        Builder $query,
+        Request $request,
+        string $today,
+        string $thirtyDaysFromNow,
+        ?string $startDate,
+        ?string $endDate,
+        bool $restrictBranch,
+    ): void {
+        /** @var User $user */
+        $user = Auth::user();
+
+        if ($restrictBranch && $user->isAdmin() && $request->filled('branch_id')) {
+            $query->where('branch_id', $request->input('branch_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('member_name', 'like', "%{$search}%")
+                    ->orWhere('member_code', 'like', "%{$search}%")
+                    ->orWhere('health_card_number', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('village_or_samity', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $status = $request->input('status');
+            if ($status === 'active') {
+                $query->whereDate('expire_date', '>=', $today);
+            } elseif ($status === 'expired') {
+                $query->whereDate('expire_date', '<', $today);
+            } elseif ($status === 'expiring_soon') {
+                $query->whereDate('expire_date', '>=', $today)
+                    ->whereDate('expire_date', '<=', $thirtyDaysFromNow);
+            }
+        }
+
+        $this->applyEntryDateRange($query, $startDate, $endDate);
+    }
+
+    /**
+     * @return list<array{branch_id: int|null, name: string, code: string|null, total_count: int, active_count: int, expiring_soon_count: int, expired_count: int}>
+     */
+    private function branchLedger(
+        Request $request,
+        User $user,
+        bool $isAdmin,
+        bool $isBranchManager,
+        string $today,
+        string $thirtyDaysFromNow,
+        ?string $startDate,
+        ?string $endDate,
+    ): array {
+        $query = HealthCardDisburse::query();
+        $this->applyCardVisibility($query, $user, $isAdmin, $isBranchManager);
+        $this->applyCardFilters($query, $request, $today, $thirtyDaysFromNow, $startDate, $endDate, false);
+
+        $counts = $query
+            ->select('branch_id')
+            ->selectRaw('COUNT(*) as total_count')
+            ->selectRaw('SUM(CASE WHEN expire_date > ? THEN 1 ELSE 0 END) as active_count', [$thirtyDaysFromNow])
+            ->selectRaw('SUM(CASE WHEN expire_date >= ? AND expire_date <= ? THEN 1 ELSE 0 END) as expiring_soon_count', [$today, $thirtyDaysFromNow])
+            ->selectRaw('SUM(CASE WHEN expire_date < ? THEN 1 ELSE 0 END) as expired_count', [$today])
+            ->groupBy('branch_id')
+            ->get()
+            ->keyBy(fn ($row) => (string) ($row->branch_id ?? 'none'));
+
+        $branchRows = $isAdmin
+            ? Branch::query()->orderBy('name')->get(['id', 'name', 'branch_code'])
+            : ($user->branch ? collect([$user->branch]) : collect());
+
+        $rows = $branchRows->map(function ($branch) use ($counts) {
+            $count = $counts->get((string) $branch->id);
+
+            return [
+                'branch_id' => $branch->id,
+                'name' => $branch->name,
+                'code' => $branch->branch_code,
+                'total_count' => (int) ($count->total_count ?? 0),
+                'active_count' => (int) ($count->active_count ?? 0),
+                'expiring_soon_count' => (int) ($count->expiring_soon_count ?? 0),
+                'expired_count' => (int) ($count->expired_count ?? 0),
+            ];
+        });
+
+        $knownIds = $branchRows->pluck('id')->map(fn ($id) => (string) $id);
+        foreach ($counts as $key => $count) {
+            if ($knownIds->contains((string) $key) || (int) $count->total_count === 0) {
+                continue;
+            }
+
+            $rows->push([
+                'branch_id' => $count->branch_id,
+                'name' => $count->branch_id ? 'অজানা শাখা' : 'শাখা নির্ধারিত নেই',
+                'code' => null,
+                'total_count' => (int) $count->total_count,
+                'active_count' => (int) $count->active_count,
+                'expiring_soon_count' => (int) $count->expiring_soon_count,
+                'expired_count' => (int) $count->expired_count,
+            ]);
+        }
+
+        return $rows
+            ->sort(function (array $a, array $b): int {
+                if ($a['total_count'] === $b['total_count']) {
+                    return strcmp($a['name'], $b['name']);
+                }
+
+                return $b['total_count'] <=> $a['total_count'];
+            })
+            ->values()
+            ->all();
     }
 
     /**

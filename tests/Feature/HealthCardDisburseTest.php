@@ -73,6 +73,7 @@ class HealthCardDisburseTest extends TestCase
             ->has('cards.data', 1)
             ->where('cards.data.0.member_name', 'মোসাঃ রোকেয়া বেগম')
             ->where('cards.data.0.validity_status', 'active')
+            ->where('branchLedger', null)
         );
     }
 
@@ -172,6 +173,65 @@ class HealthCardDisburseTest extends TestCase
         $this->assertDatabaseMissing('health_card_disburses', [
             'id' => $card->id,
         ]);
+    }
+
+    public function test_branch_ledger_counts_cards_per_branch_for_the_selected_dates(): void
+    {
+        $other = Branch::create([
+            'name' => 'Rampur Branch',
+            'branch_code' => 'RMP-01',
+            'is_active' => true,
+        ]);
+        Branch::create([
+            'name' => 'Empty Branch',
+            'branch_code' => 'EMP-01',
+            'is_active' => true,
+        ]);
+
+        $this->makeCard('চাঁদপুরা এক', '2026-03-10');
+        $this->makeCard('চাঁদপুরা দুই', '2026-03-20');
+        $this->makeCard('চাঁদপুরা বাইরে', '2026-08-01');
+
+        HealthCardDisburse::create([
+            'user_id' => $this->admin->id,
+            'branch_id' => $other->id,
+            'member_name' => 'রামপুর এক',
+            'member_code' => 'MEM-R1',
+            'health_card_number' => 'HC-R1',
+            'entry_date' => '2026-03-12',
+            'expire_date' => '2027-03-12',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('health-cards.index', [
+            'view' => 'ledger',
+            'start_date' => '2026-03-01',
+            'end_date' => '2026-03-31',
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('filters.view', 'ledger')
+            ->has('branchLedger', 3)
+            ->where('branchLedger.0.name', 'Chandpura Branch')
+            ->where('branchLedger.0.total_count', 2)
+            ->where('branchLedger.1.name', 'Rampur Branch')
+            ->where('branchLedger.1.total_count', 1)
+            ->where('branchLedger.2.name', 'Empty Branch')
+            ->where('branchLedger.2.total_count', 0)
+        );
+
+        $workerResponse = $this->actingAs($this->worker)->get(route('health-cards.index', [
+            'view' => 'ledger',
+            'start_date' => '2026-03-01',
+            'end_date' => '2026-03-31',
+        ]));
+
+        $workerResponse->assertOk();
+        $workerResponse->assertInertia(fn ($page) => $page
+            ->has('branchLedger', 1)
+            ->where('branchLedger.0.name', 'Chandpura Branch')
+            ->where('branchLedger.0.total_count', 2)
+        );
     }
 
     public function test_date_range_filter_returns_cards_disbursed_between_from_and_to(): void
