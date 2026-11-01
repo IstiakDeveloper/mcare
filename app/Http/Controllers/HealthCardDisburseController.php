@@ -97,9 +97,7 @@ class HealthCardDisburseController extends Controller
                 'end_date' => $endDate ?? '',
                 'view' => $showLedger ? 'ledger' : '',
             ],
-            'branchLedger' => $showLedger
-                ? $this->branchLedger($request, $user, $isAdmin, $isBranchManager, $today, $thirtyDaysFromNow, $startDate, $endDate)
-                : null,
+            'branchLedger' => $this->branchLedger($request, $user, $isAdmin, $isBranchManager, $today, $thirtyDaysFromNow, $startDate, $endDate),
             'stats' => [
                 'total_count' => $totalCount,
                 'month_count' => $monthCount,

@@ -73,7 +73,8 @@ class HealthCardDisburseTest extends TestCase
             ->has('cards.data', 1)
             ->where('cards.data.0.member_name', 'মোসাঃ রোকেয়া বেগম')
             ->where('cards.data.0.validity_status', 'active')
-            ->where('branchLedger', null)
+            ->has('branchLedger', 1)
+            ->where('branchLedger.0.total_count', 1)
         );
     }
 

@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
     Building2,
@@ -12,6 +12,7 @@ import {
     MapPin,
     Phone,
     Plus,
+    Printer,
     Search,
     Shield,
     ShieldAlert,
@@ -33,6 +34,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/utils';
+import type { Auth } from '@/types/auth';
 import type { BranchOption, HealthCardDisburse, Paginated } from '@/types/mcare';
 
 type BranchLedgerRow = {
@@ -105,6 +107,7 @@ export default function HealthCardsIndex({
     userBranchName,
     canManage = false,
 }: Props) {
+    const { auth } = usePage<{ auth: Auth }>().props;
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingCard, setEditingCard] = useState<HealthCardDisburse | null>(null);
     const [deletingCardId, setDeletingCardId] = useState<number | null>(null);
@@ -269,6 +272,15 @@ export default function HealthCardsIndex({
         filters.start_date || filters.end_date
             ? `${filters.start_date ? formatDate(filters.start_date) : 'শুরু'} — ${filters.end_date ? formatDate(filters.end_date) : 'এখন পর্যন্ত'}`
             : 'সব তারিখ';
+    const ledgerStatusLabel =
+        filters.status === 'active'
+            ? 'সচল কার্ড'
+            : filters.status === 'expired'
+              ? 'মেয়াদোত্তীর্ণ'
+              : filters.status === 'expiring_soon'
+                ? 'শীঘ্রই শেষ'
+                : 'সব স্ট্যাটাস';
+    const ledgerScope = branches.length > 1 ? 'সকল শাখা' : userBranchName || 'প্রধান শাখা';
 
     const handleAddSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -327,7 +339,130 @@ export default function HealthCardsIndex({
         <>
             <Head title="হেলথ কার্ড বিতরণ তালিকা — M Care" />
 
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-10">
+            <style>{`
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 12mm 10mm 14mm 10mm;
+                    }
+                    html, body {
+                        background: #ffffff !important;
+                        color: #000000 !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    [data-slot="sidebar"],
+                    [data-slot="sidebar-header"],
+                    [data-sidebar],
+                    header,
+                    nav,
+                    aside,
+                    footer,
+                    [data-mobile-nav],
+                    [data-sonner-toaster],
+                    [role="dialog"] {
+                        display: none !important;
+                    }
+                    [data-slot="sidebar-wrapper"],
+                    [data-slot="sidebar-inset"] {
+                        display: block !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        min-height: 0 !important;
+                        height: auto !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        box-shadow: none !important;
+                        border: 0 !important;
+                        border-radius: 0 !important;
+                        overflow: visible !important;
+                    }
+                    #official-report {
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        color: #000000 !important;
+                        box-shadow: none !important;
+                    }
+                    #official-report .screen-only {
+                        display: none !important;
+                    }
+                    #official-report,
+                    #official-report * {
+                        color: #000000 !important;
+                        background: transparent !important;
+                        box-shadow: none !important;
+                    }
+                    #official-report {
+                        background: #ffffff !important;
+                    }
+                    #official-report .print-letterhead,
+                    #official-report .print-ledger {
+                        display: block !important;
+                    }
+                    #official-report .print-signature {
+                        display: grid !important;
+                    }
+                    #official-report th {
+                        background: #f0f0f0 !important;
+                    }
+                    table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        page-break-inside: auto;
+                    }
+                    tr {
+                        page-break-inside: avoid !important;
+                        page-break-after: auto;
+                    }
+                    thead {
+                        display: table-header-group !important;
+                    }
+                    tfoot {
+                        display: table-footer-group !important;
+                    }
+                    th, td {
+                        border: 1px solid #222222 !important;
+                        padding: 4px 6px !important;
+                        font-size: 9pt !important;
+                        color: #000000 !important;
+                        background: #ffffff !important;
+                    }
+                    th {
+                        background-color: #f0f0f0 !important;
+                        font-weight: bold !important;
+                    }
+                }
+            `}</style>
+
+            <div id="official-report">
+            <div className="print-letterhead hidden text-black font-sans mb-4 border-b-2 border-black pb-3">
+                <div className="text-center space-y-0.5">
+                    <h1 className="text-lg font-black tracking-wider uppercase">
+                        M Care Health Services Management System
+                    </h1>
+                    <p className="text-xs font-semibold text-gray-800">
+                        Department of Primary Healthcare & Field Operations
+                    </p>
+                    <p className="text-sm font-bold text-black uppercase mt-1">
+                        শাখাভিত্তিক হেলথ কার্ড লেজার (Branch-wise Health Card Ledger)
+                    </p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[9pt] border border-black p-2 bg-gray-50/50">
+                    <div>
+                        <div><strong>Report Period:</strong> {ledgerPeriod}</div>
+                        <div><strong>Target Branch:</strong> {ledgerScope}</div>
+                    </div>
+                    <div className="text-right">
+                        <div><strong>Status:</strong> {ledgerStatusLabel}</div>
+                        <div><strong>Generated On:</strong> {formatDate(today)} by {auth.user?.name || '—'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="screen-only mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-3 md:p-6 pb-24 md:pb-10">
                 {/* 1. Header with Title & New Entry Button */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-2xs">
                     <div className="flex items-center gap-3">
@@ -349,14 +484,25 @@ export default function HealthCardsIndex({
                         </div>
                     </div>
 
-                    <Button
-                        type="button"
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs h-9 px-4 shadow-xs self-start sm:self-auto cursor-pointer"
-                    >
-                        <Plus className="size-4 mr-1.5" />
-                        + নতুন কার্ড বিতরণ এন্ট্রি
-                    </Button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => window.print()}
+                            className="rounded-xl text-xs font-bold h-9 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                        >
+                            <Printer className="size-4 mr-1.5" />
+                            Print A4 / PDF
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs h-9 px-4 shadow-xs cursor-pointer"
+                        >
+                            <Plus className="size-4 mr-1.5" />
+                            + নতুন কার্ড বিতরণ এন্ট্রি
+                        </Button>
+                    </div>
                 </div>
 
                 {/* 2. Key Statistics Ribbon */}
@@ -1312,6 +1458,68 @@ export default function HealthCardsIndex({
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <div className="print-ledger hidden">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style={{ width: '36px' }}>#</th>
+                            <th>শাখা (Branch Code)</th>
+                            <th>মোট কার্ড</th>
+                            <th>সচল</th>
+                            <th>শীঘ্রই শেষ</th>
+                            <th>মেয়াদোত্তীর্ণ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {ledgerRows.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} style={{ textAlign: 'center' }}>এই ফিল্টারে কোনো শাখার লেজার নেই।</td>
+                            </tr>
+                        ) : (
+                            ledgerRows.map((row, idx) => (
+                                <tr key={row.branch_id ?? 'none'}>
+                                    <td>{idx + 1}</td>
+                                    <td>{formatBranch(row.name, row.code)}</td>
+                                    <td style={{ textAlign: 'right' }}>{row.total_count.toLocaleString()}</td>
+                                    <td style={{ textAlign: 'right' }}>{row.active_count.toLocaleString()}</td>
+                                    <td style={{ textAlign: 'right' }}>{row.expiring_soon_count.toLocaleString()}</td>
+                                    <td style={{ textAlign: 'right' }}>{row.expired_count.toLocaleString()}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colSpan={2}><strong>মোট</strong></td>
+                            <td style={{ textAlign: 'right' }}><strong>{ledgerTotals.total_count.toLocaleString()}</strong></td>
+                            <td style={{ textAlign: 'right' }}><strong>{ledgerTotals.active_count.toLocaleString()}</strong></td>
+                            <td style={{ textAlign: 'right' }}><strong>{ledgerTotals.expiring_soon_count.toLocaleString()}</strong></td>
+                            <td style={{ textAlign: 'right' }}><strong>{ledgerTotals.expired_count.toLocaleString()}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div className="print-signature hidden grid-cols-4 gap-6 pt-16 text-center text-[9pt] border-t-2 border-black mt-12 text-black">
+                <div>
+                    <div className="border-t border-black pt-1 font-bold">Field Paramedic / Worker</div>
+                    <div className="text-[8pt] text-gray-600">Signature & Date</div>
+                </div>
+                <div>
+                    <div className="border-t border-black pt-1 font-bold">Field Supervisor</div>
+                    <div className="text-[8pt] text-gray-600">Verification & Date</div>
+                </div>
+                <div>
+                    <div className="border-t border-black pt-1 font-bold">Branch Manager</div>
+                    <div className="text-[8pt] text-gray-600">Seal & Signature</div>
+                </div>
+                <div>
+                    <div className="border-t border-black pt-1 font-bold">Director (Health Operations)</div>
+                    <div className="text-[8pt] text-gray-600">Approval & Seal</div>
+                </div>
+            </div>
+            </div>
         </>
     );
 }
