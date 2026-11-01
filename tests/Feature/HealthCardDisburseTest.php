@@ -213,11 +213,32 @@ class HealthCardDisburseTest extends TestCase
             ->where('filters.view', 'ledger')
             ->has('branchLedger', 3)
             ->where('branchLedger.0.name', 'Chandpura Branch')
+            ->where('branchLedger.0.code', 'CHD-01')
             ->where('branchLedger.0.total_count', 2)
-            ->where('branchLedger.1.name', 'Rampur Branch')
-            ->where('branchLedger.1.total_count', 1)
-            ->where('branchLedger.2.name', 'Empty Branch')
-            ->where('branchLedger.2.total_count', 0)
+            ->where('branchLedger.1.name', 'Empty Branch')
+            ->where('branchLedger.1.code', 'EMP-01')
+            ->where('branchLedger.1.total_count', 0)
+            ->where('branchLedger.2.name', 'Rampur Branch')
+            ->where('branchLedger.2.code', 'RMP-01')
+            ->where('branchLedger.2.total_count', 1)
+            ->where('branches.0.branch_code', 'CHD-01')
+            ->where('branches.1.branch_code', 'EMP-01')
+            ->where('branches.2.branch_code', 'RMP-01')
+        );
+
+        $list = $this->actingAs($this->admin)->get(route('health-cards.index', [
+            'start_date' => '2026-03-01',
+            'end_date' => '2026-03-31',
+        ]));
+
+        $list->assertOk();
+        $list->assertInertia(fn ($page) => $page
+            ->has('cards.data', 3)
+            ->where('cards.data.0.member_name', 'চাঁদপুরা দুই')
+            ->where('cards.data.0.branch.branch_code', 'CHD-01')
+            ->where('cards.data.1.member_name', 'চাঁদপুরা এক')
+            ->where('cards.data.2.member_name', 'রামপুর এক')
+            ->where('cards.data.2.branch.branch_code', 'RMP-01')
         );
 
         $workerResponse = $this->actingAs($this->worker)->get(route('health-cards.index', [

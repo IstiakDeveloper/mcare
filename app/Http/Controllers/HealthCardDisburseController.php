@@ -27,9 +27,13 @@ class HealthCardDisburseController extends Controller
         $showLedger = $request->input('view') === 'ledger';
         [$startDate, $endDate] = $this->entryDateRange($request);
 
-        $query = HealthCardDisburse::with(['user:id,name,employee_code', 'branch:id,name,branch_code'])
-            ->latest('entry_date')
-            ->latest('id');
+        $query = HealthCardDisburse::query()
+            ->with(['user:id,name,employee_code', 'branch:id,name,branch_code'])
+            ->leftJoin('branches', 'branches.id', '=', 'health_card_disburses.branch_id')
+            ->select('health_card_disburses.*')
+            ->orderBy('branches.branch_code')
+            ->orderByDesc('health_card_disburses.entry_date')
+            ->orderByDesc('health_card_disburses.id');
 
         $this->applyCardVisibility($query, $user, $isAdmin, $isBranchManager);
         $this->applyCardFilters($query, $request, $today, $thirtyDaysFromNow, $startDate, $endDate, true);
@@ -59,7 +63,7 @@ class HealthCardDisburseController extends Controller
             ->count();
 
         $branches = $isAdmin
-            ? Branch::query()->orderBy('name')->get(['id', 'name', 'branch_code as code'])
+            ? Branch::query()->orderBy('branch_code')->orderBy('name')->get(['id', 'name', 'branch_code'])
             : ($user->branch ? collect([$user->branch]) : collect());
 
         $paginated = $query->paginate(25)->withQueryString();
@@ -106,7 +110,9 @@ class HealthCardDisburseController extends Controller
             'branches' => $branches,
             'today' => $today,
             'userBranchId' => $user->branch_id,
-            'userBranchName' => $user->branch?->name ?? 'প্রধান শাখা',
+            'userBranchName' => $user->branch
+                ? trim($user->branch->name.($user->branch->branch_code ? ' ('.$user->branch->branch_code.')' : ''))
+                : 'প্রধান শাখা',
             'canManage' => $isAdmin || $isBranchManager,
         ]);
     }
@@ -286,7 +292,7 @@ class HealthCardDisburseController extends Controller
             ->keyBy(fn ($row) => (string) ($row->branch_id ?? 'none'));
 
         $branchRows = $isAdmin
-            ? Branch::query()->orderBy('name')->get(['id', 'name', 'branch_code'])
+            ? Branch::query()->orderBy('branch_code')->orderBy('name')->get(['id', 'name', 'branch_code'])
             : ($user->branch ? collect([$user->branch]) : collect());
 
         $rows = $branchRows->map(function ($branch) use ($counts) {
@@ -322,11 +328,23 @@ class HealthCardDisburseController extends Controller
 
         return $rows
             ->sort(function (array $a, array $b): int {
-                if ($a['total_count'] === $b['total_count']) {
-                    return strcmp($a['name'], $b['name']);
+                $codeA = (string) ($a['code'] ?? '');
+                $codeB = (string) ($b['code'] ?? '');
+
+                if ($codeA === '' && $codeB !== '') {
+                    return 1;
                 }
 
-                return $b['total_count'] <=> $a['total_count'];
+                if ($codeB === '' && $codeA !== '') {
+                    return -1;
+                }
+
+                $byCode = strnatcasecmp($codeA, $codeB);
+                if ($byCode !== 0) {
+                    return $byCode;
+                }
+
+                return strcmp($a['name'], $b['name']);
             })
             ->values()
             ->all();

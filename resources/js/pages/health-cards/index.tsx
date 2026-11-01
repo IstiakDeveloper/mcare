@@ -71,6 +71,13 @@ type Props = {
 };
 
 // Helper to calculate expire date by adding years to a base date
+function formatBranch(name?: string | null, code?: string | null): string {
+    const branchName = name?.trim() || 'প্রধান শাখা';
+    const branchCode = code?.trim();
+
+    return branchCode ? `${branchName} (${branchCode})` : branchName;
+}
+
 function calculateExpireDate(baseDateStr: string, yearsToAdd: number): string {
     if (!baseDateStr) return '';
     try {
@@ -464,7 +471,7 @@ export default function HealthCardsIndex({
                                     <option value="">সকল শাখা</option>
                                     {branches.map((b) => (
                                         <option key={b.id} value={b.id}>
-                                            {b.name}
+                                            {formatBranch(b.name, b.branch_code)}
                                         </option>
                                     ))}
                                 </select>
@@ -576,10 +583,7 @@ export default function HealthCardsIndex({
                                     >
                                         <div className="flex items-start justify-between gap-2">
                                             <div>
-                                                <p className="text-sm font-bold text-foreground">{row.name}</p>
-                                                {row.code ? (
-                                                    <p className="text-[10px] font-mono text-muted-foreground">{row.code}</p>
-                                                ) : null}
+                                                <p className="text-sm font-bold text-foreground">{formatBranch(row.name, row.code)}</p>
                                             </div>
                                             <span className="rounded-xl bg-primary/10 px-2.5 py-1 text-sm font-bold text-primary">
                                                 {row.total_count.toLocaleString()} টি
@@ -614,10 +618,7 @@ export default function HealthCardsIndex({
                                             >
                                                 <td className="px-3 py-2.5 font-bold text-muted-foreground">{idx + 1}</td>
                                                 <td className="px-3 py-2.5">
-                                                    <div className="font-bold text-foreground">{row.name}</div>
-                                                    {row.code ? (
-                                                        <div className="font-mono text-[10px] text-muted-foreground">{row.code}</div>
-                                                    ) : null}
+                                                    <div className="font-bold text-foreground">{formatBranch(row.name, row.code)}</div>
                                                 </td>
                                                 <td className="px-3 py-2.5 text-right text-sm font-bold text-primary">{row.total_count.toLocaleString()}</td>
                                                 <td className="px-3 py-2.5 text-right font-semibold text-emerald-700 dark:text-emerald-300">{row.active_count.toLocaleString()}</td>
@@ -721,7 +722,7 @@ export default function HealthCardsIndex({
                                             </div>
 
                                             <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
-                                                <span>শাখা: {item.branch?.name || 'প্রধান শাখা'}</span>
+                                                <span>শাখা: {formatBranch(item.branch?.name, item.branch?.branch_code)}</span>
                                                 <span>এন্ট্রি: {item.user?.name || '—'}</span>
 
                                                 {canManage ? (
@@ -825,8 +826,8 @@ export default function HealthCardsIndex({
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="px-3 py-2.5 max-w-[140px] truncate text-foreground">
-                                                        <div>{item.branch?.name || 'প্রধান শাখা'}</div>
+                                                    <td className="px-3 py-2.5 max-w-[180px] truncate text-foreground">
+                                                        <div>{formatBranch(item.branch?.name, item.branch?.branch_code)}</div>
                                                         {item.village_or_samity ? (
                                                             <div className="text-[10px] text-muted-foreground truncate">
                                                                 {item.village_or_samity}
